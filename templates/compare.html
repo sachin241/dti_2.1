@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+{% block title %}Compare Prices{% endblock %}
+
+{% block head %}
+<style>
+  .compare-card{
+    background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:24px;
+    transition:border-color .2s,transform .2s,box-shadow .2s;
+  }
+  .compare-card:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.4)}
+
+  .platform-row{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:12px 16px;border-radius:var(--r2);margin-bottom:8px;
+    border:1px solid var(--border);transition:border-color .15s;
+  }
+  .platform-row:last-child{margin-bottom:0}
+  .platform-row.is-lowest{
+    border-color:rgba(52,211,153,.3);
+    background:rgba(52,211,153,.06);
+  }
+  .platform-row .price{font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700}
+  .platform-row.is-lowest .price{color:var(--green)}
+
+  .chart-wrap{
+    background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);
+    padding:28px;margin-top:28px;
+  }
+
+  .search-bar{
+    display:flex;gap:12px;margin-bottom:28px;
+  }
+  .search-bar .input{flex:1;font-size:15px;padding:13px 18px}
+  .search-bar .btn{flex-shrink:0;font-size:14px;padding:13px 22px}
+
+  .savings-badge{
+    display:inline-flex;align-items:center;gap:6px;
+    background:rgba(52,211,153,.1);color:var(--green);
+    border:1px solid rgba(52,211,153,.22);
+    border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;
+    margin-top:14px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page">
+
+  <!-- Header -->
+  <div class="a1" style="margin-bottom:28px">
+    <h1 style="font-size:30px;margin-bottom:8px">Price Comparison</h1>
+    <p style="color:var(--text2);font-size:15px">Search a product and instantly compare prices across all platforms.</p>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row a2" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:28px">
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--green)">{{ logged_in_count }}</div>
+      <div class="stat-label">Users online</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--accent2)">{{ trusted_count }}</div>
+      <div class="stat-label">Trusted users</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--yellow)">4</div>
+      <div class="stat-label">Platforms</div>
+    </div>
+  </div>
+
+  <!-- Search -->
+  <div class="search-bar a2">
+    <input class="input" type="text" id="queryInput" placeholder="e.g. iPhone 15, Sony WH-1000XM5, Samsung S24…"/>
+    <button class="btn btn-primary" onclick="doCompare()">Compare →</button>
+  </div>
+
+  <!-- Results area -->
+  <div id="resultsWrap"></div>
+
+  <!-- Chart area -->
+  <div id="chartWrap" style="display:none" class="chart-wrap">
+    <h3 style="font-size:16px;margin-bottom:20px;color:var(--text2)">Price trend simulation (7 days)</h3>
+    <canvas id="priceChart" height="80"></canvas>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const PLATFORM_COLORS={
+  flipkart:'#5b9cf6',
+  amazon:'#fbbf24',
+  myntra:'#fb7185',
+  snapdeal:'#f87171',
+};
+const PLATFORM_LABELS={
+  flipkart:'🛒 Flipkart',
+  amazon:'📦 Amazon',
+  myntra:'👗 Myntra',
+  snapdeal:'⚡ Snapdeal',
+};
+const BADGE_CLASS={flipkart:'badge-flip',amazon:'badge-amz',myntra:'badge-myn',snapdeal:'badge-snap'};
+
+let chartInst=null;
+
+async function doCompare(){
+  const q=document.getElementById('queryInput').value.trim();
+  const wrap=document.getElementById('resultsWrap');
+  wrap.innerHTML='<div class="alert alert-info a2">🔍 Fetching prices across platforms…</div>';
+  document.getElementById('chartWrap').style.display='none';
+
+  const res=await fetch('/api/compare?q='+encodeURIComponent(q||''));
+  const data=await res.json();
+  const items=data.comparisons||[];
+
+  if(!items.length){
+    wrap.innerHTML='<div class="alert alert-warn">No comparison data available yet. Try another keyword.</div>';
+    return;
+  }
+
+  const grid=document.createElement('div');
+  grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px';
+
+  items.forEach(item=>{
+    const sorted=[...item.prices].sort((a,b)=>a.price-b.price);
+    const lowestPrice=sorted[0].price;
+
+    let rows=item.prices.map(p=>{
+      const isLow=p.price===lowestPrice;
+      const siteKey=p.site.toLowerCase();
+      const bc=BADGE_CLASS[siteKey]||'badge-gray';
+      const pl=PLATFORM_LABELS[siteKey]||p.site;
+      return `<div class="platform-row${isLow?' is-lowest':''}">
+        <span class="badge ${bc}">${pl}</span>
+        <span class="price">₹${Number(p.price).toLocaleString('en-IN')}${isLow?' <span style="font-size:12px">🏆</span>':''}</span>
+      </div>`;
+    }).join('');
+
+    const savings=item.savings||0;
+    const card=document.createElement('div');
+    card.className='compare-card';
+    card.innerHTML=`
+      <h3 style="font-size:15px;font-weight:700;margin-bottom:16px;line-height:1.4">${item.product}</h3>
+      ${rows}
+      ${savings?`<div class="savings-badge">💰 Save ₹${Number(savings).toLocaleString('en-IN')} on ${item.lowest}</div>`:''}
+    `;
+    grid.appendChild(card);
+  });
+
+  wrap.innerHTML='';
+  wrap.appendChild(grid);
+
+  renderChart(items);
+}
+
+function renderChart(items){
+  if(!items||!items.length) return;
+  const chartWrap=document.getElementById('chartWrap');
+  const ctx=document.getElementById('priceChart');
+  chartWrap.style.display='block';
+
+  if(chartInst){chartInst.destroy();chartInst=null;}
+
+  const first=items[0];
+  const datasets=first.prices.map(p=>{
+    const base=p.price;
+    const steps=[0,800,600,450,300,200,100,0];
+    const siteKey=p.site.toLowerCase();
+    const color=PLATFORM_COLORS[siteKey]||'#888';
+    return{
+      label:PLATFORM_LABELS[siteKey]||p.site,
+      data:steps.map((d,i)=>base+(steps[i]||0)),
+      borderColor:color,
+      backgroundColor:color+'18',
+      fill:true,
+      tension:.4,
+      pointBackgroundColor:color,
+      pointRadius:4,
+      borderWidth:2,
+    };
+  });
+
+  chartInst=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels:['7 days ago','6d','5d','4d','3d','2d','Yesterday','Today'],
+      datasets,
+    },
+    options:{
+      responsive:true,
+      plugins:{
+        legend:{labels:{color:'#8b93b5',font:{size:13,family:'Plus Jakarta Sans'}}},
+        tooltip:{
+          backgroundColor:'#0d1020',
+          borderColor:'rgba(255,255,255,.1)',
+          borderWidth:1,
+          titleColor:'#eef0f8',
+          bodyColor:'#8b93b5',
+          callbacks:{label:ctx=>`${ctx.dataset.label}: ₹${Number(ctx.parsed.y).toLocaleString('en-IN')}`}
+        }
+      },
+      scales:{
+        x:{ticks:{color:'#535b7e',font:{size:12}},grid:{color:'rgba(255,255,255,.04)'}},
+        y:{
+          ticks:{color:'#535b7e',font:{size:12},callback:v=>'₹'+Number(v).toLocaleString('en-IN')},
+          grid:{color:'rgba(255,255,255,.04)'}
+        }
+      }
+    }
+  });
+}
+
+// Load default comparisons on page load
+(async function(){
+  const res=await fetch('/api/compare');
+  const data=await res.json();
+  const items=data.comparisons||[];
+  if(!items.length) return;
+
+  const grid=document.createElement('div');
+  grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px';
+
+  items.forEach(item=>{
+    const sorted=[...item.prices].sort((a,b)=>a.price-b.price);
+    const lowestPrice=sorted[0].price;
+    let rows=item.prices.map(p=>{
+      const isLow=p.price===lowestPrice;
+      const siteKey=p.site.toLowerCase();
+      const bc=BADGE_CLASS[siteKey]||'badge-gray';
+      const pl=PLATFORM_LABELS[siteKey]||p.site;
+      return `<div class="platform-row${isLow?' is-lowest':''}">
+        <span class="badge ${bc}">${pl}</span>
+        <span class="price">₹${Number(p.price).toLocaleString('en-IN')}${isLow?' <span style="font-size:12px">🏆</span>':''}</span>
+      </div>`;
+    }).join('');
+    const savings=item.savings||0;
+    const card=document.createElement('div');
+    card.className='compare-card';
+    card.innerHTML=`
+      <h3 style="font-size:15px;font-weight:700;margin-bottom:16px;line-height:1.4">${item.product}</h3>
+      ${rows}
+      ${savings?`<div class="savings-badge">💰 Save ₹${Number(savings).toLocaleString('en-IN')} on ${item.lowest}</div>`:''}
+    `;
+    grid.appendChild(card);
+  });
+
+  document.getElementById('resultsWrap').appendChild(grid);
+  renderChart(items);
+})();
+
+// Enter key triggers compare
+document.getElementById('queryInput').addEventListener('keydown',e=>{if(e.key==='Enter')doCompare()});
+</script>
+{% endblock %}

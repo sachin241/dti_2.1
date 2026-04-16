@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+
+{% block head %}
+<style>
+  .hero-wrap{position:relative;overflow:hidden;padding:72px 0 60px}
+  .hero-blob-l{width:600px;height:600px;top:-160px;left:-200px;background:radial-gradient(circle,rgba(108,95,247,.18),transparent 68%)}
+  .hero-blob-r{width:420px;height:420px;top:0;right:-120px;background:radial-gradient(circle,rgba(34,211,238,.12),transparent 68%)}
+  .platform-pill{
+    display:inline-flex;align-items:center;gap:7px;
+    padding:8px 18px;border-radius:30px;font-size:13px;font-weight:600;
+    border:1px solid;transition:transform .2s,box-shadow .2s;cursor:default;
+  }
+  .platform-pill:hover{transform:translateY(-2px)}
+  .pill-flip{background:rgba(40,116,240,.12);color:#5b9cf6;border-color:rgba(40,116,240,.25)}
+  .pill-amz{background:rgba(255,153,0,.12);color:#fbbf24;border-color:rgba(255,153,0,.25)}
+  .pill-myn{background:rgba(255,63,108,.12);color:#fb7185;border-color:rgba(255,63,108,.25)}
+  .pill-snap{background:rgba(228,0,0,.12);color:#f87171;border-color:rgba(228,0,0,.25)}
+
+  .feat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;margin-top:48px}
+  .feat-card{
+    background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);
+    padding:26px;transition:border-color .2s,transform .2s,box-shadow .2s;
+  }
+  .feat-card:hover{border-color:rgba(108,95,247,.35);transform:translateY(-3px);box-shadow:0 12px 40px rgba(0,0,0,.4)}
+  .feat-icon{font-size:30px;margin-bottom:14px}
+  .feat-title{font-size:15px;font-weight:700;margin-bottom:7px}
+  .feat-desc{font-size:13px;color:var(--text3);line-height:1.6}
+
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+  .live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s ease-in-out infinite;display:inline-block}
+  .timeline{margin-top:42px}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page" style="padding-top:0">
+
+  <!-- Hero -->
+  <div class="hero-wrap">
+    <div class="blob hero-blob-l"></div>
+    <div class="blob hero-blob-r"></div>
+
+    <div style="position:relative;z-index:1;text-align:center;max-width:740px;margin:0 auto">
+
+      <div style="display:inline-flex;align-items:center;gap:8px;background:rgba(108,95,247,.1);border:1px solid rgba(108,95,247,.22);border-radius:30px;padding:6px 16px;margin-bottom:24px" class="a1">
+        <span class="live-dot"></span>
+        <span style="font-size:13px;color:var(--accent3);font-weight:600">Welcome, {{ user.name }}</span>
+      </div>
+
+      <h1 style="font-size:clamp(38px,7vw,68px);margin-bottom:18px;line-height:1.08" class="a1">
+        Track Prices.<br>
+        <span style="background:linear-gradient(120deg,var(--accent2) 0%,var(--cyan) 60%,var(--green) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent">
+          Buy Smarter.
+        </span>
+      </h1>
+
+      <p style="font-size:18px;color:var(--text2);max-width:520px;margin:0 auto 36px;line-height:1.7" class="a2">
+        Never overpay again. Set target prices and get instant email alerts when products drop on any major platform.
+      </p>
+
+      <!-- Platform pills -->
+      <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-bottom:38px" class="a2">
+        <span class="platform-pill pill-flip">🛒 Flipkart</span>
+        <span class="platform-pill pill-amz">📦 Amazon</span>
+        <span class="platform-pill pill-myn">👗 Myntra</span>
+        <span class="platform-pill pill-snap">⚡ Snapdeal</span>
+      </div>
+
+      <!-- CTA buttons -->
+      <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap" class="a3">
+        <a href="/track"><button class="btn btn-primary" style="font-size:15px;padding:14px 30px">Start Tracking →</button></a>
+        <a href="/dashboard"><button class="btn btn-ghost" style="font-size:15px;padding:14px 30px">My Dashboard</button></a>
+        <a href="/compare"><button class="btn btn-cyan btn-sm" style="padding:14px 24px;font-size:15px">Compare Prices</button></a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row a3">
+    <div class="stat-card">
+      <div class="stat-num" style="background:linear-gradient(120deg,var(--accent2),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent">{{ trusted_count }}</div>
+      <div class="stat-label">Registered users</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--green)">{{ logged_in_count }}</div>
+      <div class="stat-label">Active this session</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--yellow)">4</div>
+      <div class="stat-label">Platforms tracked</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--cyan)">6h</div>
+      <div class="stat-label">Auto-refresh interval</div>
+    </div>
+  </div>
+
+  <!-- Features -->
+  <div class="feat-grid a4">
+    <div class="feat-card">
+      <div class="feat-icon">🔍</div>
+      <div class="feat-title">Real-time Scraping</div>
+      <div class="feat-desc">Selenium-powered live prices from Flipkart, Amazon, Myntra and Snapdeal.</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">🎯</div>
+      <div class="feat-title">Smart Alerts</div>
+      <div class="feat-desc">Branded HTML email the moment your target price is hit — no duplicates in 24h.</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">⏰</div>
+      <div class="feat-title">Auto Refresh</div>
+      <div class="feat-desc">Background scheduler checks all your products every 6 hours automatically.</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">📊</div>
+      <div class="feat-title">Price History</div>
+      <div class="feat-desc">Every price check is stored — see exactly how prices move over time.</div>
+    </div>
+  </div>
+
+  <div class="timeline a4">
+    <h2 style="font-size:24px;margin-bottom:14px">How it works</h2>
+    <p style="color:var(--text2);font-size:14px;margin-bottom:16px">Simple visual flow for new users to follow in order.</p>
+    <div class="flow-grid">
+      <div class="flow-step">
+        <div class="flow-kicker">Step 1</div>
+        <div class="flow-title">Login</div>
+        <div class="flow-desc">Authenticate quickly with email/password or Google.</div>
+        <div class="flow-track"><span style="width:100%"></span></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-kicker">Step 2</div>
+        <div class="flow-title">Track URL</div>
+        <div class="flow-desc">Paste product URL and set your target price instantly.</div>
+        <div class="flow-track"><span style="width:75%"></span></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-kicker">Step 3</div>
+        <div class="flow-title">Monitor</div>
+        <div class="flow-desc">Dashboard cards show progress and current delta to target.</div>
+        <div class="flow-track"><span style="width:55%"></span></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-kicker">Step 4</div>
+        <div class="flow-title">Get Alert</div>
+        <div class="flow-desc">Receive email when price drops to your configured target.</div>
+        <div class="flow-track"><span style="width:32%"></span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

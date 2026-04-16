@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+{% block title %}Track a Product{% endblock %}
+
+{% block head %}
+<style>
+  .platform-detect{
+    display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;
+  }
+  .result-card{
+    background:linear-gradient(140deg,rgba(108,95,247,.12),rgba(34,211,238,.06));
+    backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+    border:1px solid rgba(255,255,255,.14);
+    border-radius:var(--r);padding:28px;margin-bottom:24px;
+    box-shadow:0 12px 50px rgba(0,0,0,.35);
+    animation:fadeUp .4s ease both;
+  }
+  .price-display{
+    font-family:'Space Grotesk',sans-serif;font-size:42px;font-weight:700;
+    background:linear-gradient(120deg,var(--accent2),var(--cyan));
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+    line-height:1;
+  }
+  .track-form-card{
+    background:linear-gradient(135deg,rgba(255,255,255,.04),rgba(255,255,255,.015));
+    border:1px solid rgba(255,255,255,.12);
+    border-radius:var(--r);padding:32px;
+    backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  }
+  .track-journey{margin-bottom:22px}
+  .progress-bar.is-complete{background:var(--green)}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-md">
+
+  <!-- Header -->
+  <div class="a1" style="margin-bottom:28px">
+    <h1 style="font-size:27px;margin-bottom:8px">Track a Product</h1>
+    <p style="color:var(--text2);font-size:13px">
+      Paste product URL, set your target, and get an email alert when price reaches your goal.
+    </p>
+  </div>
+
+  <!-- Stats bar -->
+  <div class="stats-row a2" style="grid-template-columns:1fr 1fr;margin-bottom:24px">
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--green);font-size:26px">{{ logged_in_count }}</div>
+      <div class="stat-label">Users online</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--accent2);font-size:26px">{{ trusted_count }}</div>
+      <div class="stat-label">Trusted users</div>
+    </div>
+  </div>
+
+  <div class="track-journey a2">
+    <div class="flow-grid">
+      <div class="flow-step">
+        <div class="flow-kicker">Step 1</div>
+        <div class="flow-title">Paste URL</div>
+        <div class="flow-desc">Product platform is automatically detected from URL.</div>
+        <div class="flow-track"><span style="width:100%"></span></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-kicker">Step 2</div>
+        <div class="flow-title">Set target</div>
+        <div class="flow-desc">Choose the price where you want to buy confidently.</div>
+        <div class="flow-track"><span style="width:72%"></span></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-kicker">Step 3</div>
+        <div class="flow-title">Track result</div>
+        <div class="flow-desc">See drop/rise status and current price immediately.</div>
+        <div class="flow-track"><span style="width:52%"></span></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-kicker">Step 4</div>
+        <div class="flow-title">Alert sent</div>
+        <div class="flow-desc">Email notification triggers once price hits target.</div>
+        <div class="flow-track"><span style="width:28%"></span></div>
+      </div>
+    </div>
+  </div>
+
+  {% if not email_alerts_enabled %}
+  <div class="alert alert-warn a2">
+    ⚙ Email alerts are currently disabled. Set <strong>SENDER_EMAIL</strong> and <strong>APP_PASSWORD</strong> to send notifications.
+  </div>
+  {% endif %}
+
+  <!-- Error -->
+  {% if error %}
+  <div class="alert alert-error a2">⚠ {{ error }}</div>
+  {% endif %}
+
+  <!-- Result card -->
+  {% if price %}
+  <div class="result-card">
+    {% if product_name %}
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;margin-bottom:8px">
+    {% else %}
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;margin-bottom:0">
+    {% endif %}
+      <div>
+        <div style="font-size:13px;color:var(--text3);margin-bottom:6px;font-weight:600;letter-spacing:.04em;text-transform:uppercase">Current Price</div>
+        <div class="price-display">{{ price }}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">
+        <span class="badge badge-{{ platform or 'gray' }}">
+          {{ {'flipkart':'🛒 Flipkart','amazon':'📦 Amazon','myntra':'👗 Myntra','snapdeal':'⚡ Snapdeal'}.get(platform, platform|title) }}
+        </span>
+        <span class="chip chip-{{ 'drop' if status=='drop' else 'rise' if status=='rise' else 'first' if status=='first' else 'same' }}">
+          {{ message }}
+        </span>
+      </div>
+    </div>
+    {% if product_name %}
+    <p style="font-size:13px;color:var(--text2);margin-top:10px;line-height:1.5">{{ product_name }}</p>
+    {% endif %}
+    {% if target_hit %}
+    <div class="alert alert-success" style="margin-top:18px;margin-bottom:0">
+      🎯 <strong>Target price reached!</strong> Email alert sent to {{ user.email }}.
+    </div>
+    {% endif %}
+    {% if alert_result == "sent" and alert_hint %}
+    <div class="alert alert-success" style="margin-top:12px;margin-bottom:0">📧 {{ alert_hint }}</div>
+    {% elif alert_result == "failed" and alert_hint %}
+    <div class="alert alert-error" style="margin-top:12px;margin-bottom:0">⚠ {{ alert_hint }}</div>
+    {% elif alert_result == "skipped" and alert_hint %}
+    <div class="alert alert-info" style="margin-top:12px;margin-bottom:0">ℹ {{ alert_hint }}</div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if message and not price %}
+  <div class="alert alert-success a2">✅ {{ message }}</div>
+  {% endif %}
+
+  <!-- Track Form -->
+  <div class="track-form-card a2">
+    <form method="post" action="/track">
+      <div class="form-group">
+        <label class="form-label">Product URL</label>
+        <div class="input-icon">
+          <span class="icon">🔗</span>
+          <input class="input" type="url" name="product_url" placeholder="https://www.flipkart.com/..." required/>
+        </div>
+        <div class="platform-detect" style="margin-top:10px">
+          <span class="badge badge-flip">Flipkart</span>
+          <span class="badge badge-amz">Amazon.in</span>
+          <span class="badge badge-myn">Myntra</span>
+          <span class="badge badge-snap">Snapdeal</span>
+          <span style="font-size:11px;color:var(--text3);display:flex;align-items:center">← auto-detected</span>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Alert email</label>
+          <div class="input-icon">
+            <span class="icon">✉️</span>
+            <input class="input" type="email" name="email" value="{{ user.email }}" required/>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Target price (₹)</label>
+          <div class="input-icon">
+            <span class="icon">🎯</span>
+            <input class="input" type="number" name="target_price" placeholder="e.g. 12000" min="1" required/>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary btn-full" type="submit" id="trackBtn" style="margin-top:24px;font-size:15px;padding:13px">
+        <span id="trackBtnText">🔍 Check Price Now</span>
+        <span id="trackSpinner" class="spinner" style="display:none"></span>
+      </button>
+    </form>
+  </div>
+
+  <!-- Tracked Products Table -->
+  {% if products and products|length > 0 %}
+  <div style="margin-top:36px" class="a3">
+    <h2 style="font-size:20px;margin-bottom:16px">Your Tracked Products</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Platform</th>
+            <th>Product</th>
+            <th>Price</th>
+            <th>Target</th>
+            <th>Progress</th>
+            <th>Last Checked</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in products %}
+          {% set plat = p.platform if p.platform else 'flipkart' %}
+          {% set tgt = p.target_price %}
+          {% set pct = [0, [100, (100 - (p.price / tgt * 100)|int)|int]|min]|max if tgt else none %}
+          <tr>
+            <td>
+              <span class="badge badge-{{ plat }}">
+                {{ {'flipkart':'Flipkart','amazon':'Amazon','myntra':'Myntra','snapdeal':'Snapdeal'}.get(plat, plat|title) }}
+              </span>
+            </td>
+            <td style="max-width:200px">
+              <a href="{{ p.url }}" target="_blank"
+                 style="color:var(--text2);text-decoration:underline;text-underline-offset:3px;font-size:13px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
+                 title="{{ p.url }}">
+                {{ (p.product_name or p.url)[:45] }}{% if (p.product_name or p.url)|length > 45 %}…{% endif %}
+              </a>
+            </td>
+            <td style="font-weight:700;color:var(--accent2)">₹{{ '{:,}'.format(p.price) }}</td>
+            <td style="color:var(--text2)">
+              {% if tgt %}₹{{ '{:,}'.format(tgt) }}{% else %}<span style="color:var(--text3)">—</span>{% endif %}
+            </td>
+            <td style="min-width:90px">
+              {% if tgt and pct is not none %}
+              <div class="progress-wrap" style="width:80px">
+                <div class="progress-bar"
+                     data-width="{{ pct }}"
+                     data-complete="{% if pct >= 100 %}1{% else %}0{% endif %}"></div>
+              </div>
+              {% else %}<span style="color:var(--text3)">—</span>{% endif %}
+            </td>
+            <td style="color:var(--text3);font-size:12px">{{ (p.created_at or '')[:16] }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelector('form').addEventListener('submit',function(){
+    document.getElementById('trackBtnText').textContent='Fetching price…';
+    document.getElementById('trackSpinner').style.display='inline-block';
+    document.getElementById('trackBtn').disabled=true;
+  });
+
+  // Auto-detect platform from URL and highlight badge
+  const urlInput=document.querySelector('input[name=product_url]');
+  const badges={flipkart:0,amazon:1,myntra:2,snapdeal:3};
+  const pillEls=document.querySelectorAll('.platform-detect .badge');
+  urlInput && urlInput.addEventListener('input',function(){
+    const v=this.value.toLowerCase();
+    pillEls.forEach((el,i)=>el.style.opacity='0.35');
+    for(const[k,i] of Object.entries(badges)){
+      if(v.includes(k)){pillEls[i].style.opacity='1';break}
+    }
+    if(!v) pillEls.forEach(el=>el.style.opacity='1');
+  });
+
+  document.querySelectorAll('.progress-bar[data-width]').forEach(function (bar) {
+    const width = Number(bar.dataset.width || '0');
+    bar.style.width = Math.max(0, Math.min(100, width)) + '%';
+    if (bar.dataset.complete === '1') bar.classList.add('is-complete');
+  });
+</script>
+{% endblock %}

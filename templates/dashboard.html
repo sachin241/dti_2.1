@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block head %}
+<style>
+  .product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:18px}
+  .product-card{
+    background:linear-gradient(135deg,rgba(255,255,255,.05),rgba(255,255,255,.015));
+    backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+    border:1px solid rgba(255,255,255,.12);
+    border-radius:var(--r);padding:24px;
+    border-left:3px solid var(--border2);
+    transition:border-color .2s,transform .2s,box-shadow .2s;
+  }
+  .product-card:hover{transform:translateY(-3px);box-shadow:0 12px 40px rgba(0,0,0,.4)}
+  .product-card.plat-flip{border-left-color:#2874F0}
+  .product-card.plat-amz {border-left-color:#FF9900}
+  .product-card.plat-myn {border-left-color:#FF3F6C}
+  .product-card.plat-snap{border-left-color:#E40000}
+
+  .empty-state{
+    text-align:center;padding:80px 40px;max-width:440px;margin:0 auto;
+  }
+  .empty-icon{font-size:56px;margin-bottom:20px;opacity:.7}
+
+  @keyframes countUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .count-anim{animation:countUp .5s ease both}
+  .dash-flow{margin-bottom:22px}
+  .progress-bar.is-complete{background:var(--green)}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page">
+
+  <!-- Header -->
+  <div class="a1" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:28px">
+    <div>
+      <h1 style="font-size:30px;margin-bottom:6px">My Dashboard</h1>
+      <p style="color:var(--text2)">
+        {% if products and products|length > 0 %}
+          Tracking {{ products|length }} product{{ 's' if products|length != 1 else '' }}
+        {% else %}
+          No products tracked yet
+        {% endif %}
+      </p>
+    </div>
+    <a href="/track"><button class="btn btn-primary">+ Track Product</button></a>
+  </div>
+
+  {% if products and products|length > 0 %}
+
+  <div class="dash-flow a2">
+    <div class="flow-grid">
+      <div class="flow-step">
+        <div class="flow-kicker">Phase 1</div>
+        <div class="flow-title">Tracked</div>
+        <div class="flow-desc">Products added and linked to platforms.</div>
+        <div class="flow-track"><span style="width:100%"></span></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-kicker">Phase 2</div>
+        <div class="flow-title">Price checks</div>
+        <div class="flow-desc">Latest prices pulled by scheduler and manual checks.</div>
+        <div class="flow-track"><span style="width:78%"></span></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-kicker">Phase 3</div>
+        <div class="flow-title">Target status</div>
+        <div class="flow-desc">Each card visualizes above or below target instantly.</div>
+        <div class="flow-track"><span style="width:56%"></span></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-kicker">Phase 4</div>
+        <div class="flow-title">Email alert</div>
+        <div class="flow-desc">Triggered automatically when item reaches target.</div>
+        <div class="flow-track"><span style="width:34%"></span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  {% set total = products|length %}
+  {% set prices = products|map(attribute='price')|list %}
+  {% set avg = (prices|sum / total)|int %}
+
+  <div class="stats-row a2">
+    <div class="stat-card">
+      <div class="stat-num count-anim" style="color:var(--accent2)">{{ total }}</div>
+      <div class="stat-label">Products tracked</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num count-anim" style="color:var(--green)">{{ logged_in_count }}</div>
+      <div class="stat-label">Users online</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num count-anim" style="color:var(--cyan)">{{ trusted_count }}</div>
+      <div class="stat-label">Trusted users</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num count-anim" style="color:var(--yellow);font-size:24px">₹{{ '{:,}'.format(avg) }}</div>
+      <div class="stat-label">Average price</div>
+    </div>
+  </div>
+
+  <!-- Product Cards -->
+  <div class="product-grid a3">
+    {% for p in products %}
+    {% set plat = p.platform if p.platform else 'flipkart' %}
+    {% set tgt  = p.target_price %}
+    {% set pnames = {'flipkart':'🛒 Flipkart','amazon':'📦 Amazon','myntra':'👗 Myntra','snapdeal':'⚡ Snapdeal'} %}
+    {% set pname  = pnames.get(plat, plat|title) %}
+    {% set display_name = (p.product_name or p.url) %}
+
+    <div class="product-card plat-{{ plat }}">
+
+      <!-- Top row -->
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px">
+        <div style="flex:1;min-width:0">
+          <span class="badge badge-{{ plat }}" style="margin-bottom:10px;display:inline-flex">{{ pname }}</span>
+          <a href="{{ p.url }}" target="_blank"
+             style="display:block;font-size:13px;color:var(--text2);text-decoration:underline;text-underline-offset:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
+             title="{{ p.url }}">
+            {{ display_name[:65] }}{% if display_name|length > 65 %}…{% endif %}
+          </a>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:700;
+                      background:linear-gradient(120deg,var(--accent2),var(--cyan));
+                      background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent">
+            ₹{{ '{:,}'.format(p.price) }}
+          </div>
+          {% if tgt %}
+          <div style="font-size:12px;color:var(--text3);margin-top:2px">Target ₹{{ '{:,}'.format(tgt) }}</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Progress to target -->
+      {% if tgt %}
+        {% set diff = tgt - p.price %}
+        {% set pct  = [0, [100, (100 - (p.price / tgt * 100)|int)|int]|min]|max %}
+        <div style="margin-bottom:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span style="font-size:12px;color:var(--text3)">Progress to target</span>
+            {% if diff >= 0 %}
+            <span class="chip chip-drop" style="font-size:11px">₹{{ '{:,}'.format(diff) }} below target</span>
+            {% else %}
+            <span class="chip chip-rise" style="font-size:11px">₹{{ '{:,}'.format(diff|abs) }} above target</span>
+            {% endif %}
+          </div>
+          <div class="progress-wrap">
+            <div class="progress-bar"
+                 data-width="{{ pct }}"
+                 data-complete="{% if pct >= 100 %}1{% else %}0{% endif %}">
+            </div>
+          </div>
+        </div>
+      {% endif %}
+
+      <!-- Footer -->
+      <div style="display:flex;justify-content:space-between;align-items:center;padding-top:12px;border-top:1px solid var(--border)">
+        <span style="font-size:12px;color:var(--text3)">
+          Last checked {{ (p.created_at or '')[:16] }}
+        </span>
+        {% if tgt and p.price <= tgt %}
+        <span class="chip chip-target" style="font-size:11px">🎯 At target!</span>
+        {% endif %}
+      </div>
+
+    </div>
+    {% endfor %}
+  </div>
+
+  {% else %}
+
+  <!-- Empty state -->
+  <div class="empty-state a2">
+    <div class="empty-icon">📦</div>
+    <h2 style="font-size:22px;margin-bottom:10px">Nothing tracked yet</h2>
+    <p style="color:var(--text3);margin-bottom:28px;font-size:14px;line-height:1.6">
+      Start tracking products from Flipkart, Amazon, Myntra or Snapdeal and get notified when prices drop.
+    </p>
+    <a href="/track"><button class="btn btn-primary" style="font-size:15px;padding:13px 28px">Track Your First Product →</button></a>
+
+    <!-- Quick stats even when empty -->
+    <div class="stats-row" style="margin-top:40px;text-align:left">
+      <div class="stat-card">
+        <div class="stat-num" style="color:var(--green)">{{ logged_in_count }}</div>
+        <div class="stat-label">Users online</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" style="color:var(--accent2)">{{ trusted_count }}</div>
+        <div class="stat-label">Trusted users</div>
+      </div>
+    </div>
+  </div>
+
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelectorAll('.progress-bar[data-width]').forEach(function (bar) {
+    const width = Number(bar.dataset.width || '0');
+    bar.style.width = Math.max(0, Math.min(100, width)) + '%';
+    if (bar.dataset.complete === '1') bar.classList.add('is-complete');
+  });
+</script>
+{% endblock %}

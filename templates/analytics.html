@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}Analytics{% endblock %}
+
+{% block head %}
+<style>
+  .analytics-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}
+  .analytics-card{
+    background:linear-gradient(135deg,rgba(255,255,255,.05),rgba(255,255,255,.015));
+    border:1px solid rgba(255,255,255,.12);
+    border-radius:var(--r);
+    padding:22px;
+    backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  }
+  .chart-card canvas{max-height:320px}
+  .metrics{display:grid;grid-template-columns:repeat(3,minmax(140px,1fr));gap:12px}
+  .metric{padding:14px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid var(--border)}
+  .metric-k{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em}
+  .metric-v{font-size:24px;font-weight:700;margin-top:2px}
+  .subtle{color:var(--text2);font-size:13px}
+  @media (max-width: 980px){
+    .analytics-grid{grid-template-columns:1fr}
+    .metrics{grid-template-columns:1fr 1fr}
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page">
+  <div class="a1" style="margin-bottom:24px">
+    <h1 style="font-size:28px;margin-bottom:8px">Statistical Analysis</h1>
+    <p class="subtle">Visual insights for your tracked prices, target gaps, and platform distribution.</p>
+  </div>
+
+  <div class="metrics a2" style="margin-bottom:16px">
+    <div class="metric">
+      <div class="metric-k">Tracked Rows</div>
+      <div class="metric-v" id="mRows">0</div>
+    </div>
+    <div class="metric">
+      <div class="metric-k">Average Price</div>
+      <div class="metric-v" id="mAvg">₹0</div>
+    </div>
+    <div class="metric">
+      <div class="metric-k">Target Hit Rate</div>
+      <div class="metric-v" id="mHit">0%</div>
+    </div>
+  </div>
+
+  <div class="analytics-grid a3">
+    <div class="analytics-card chart-card">
+      <h3 style="font-size:15px;margin-bottom:14px">Price Trend (Daily Average)</h3>
+      <canvas id="trendChart" height="110"></canvas>
+    </div>
+    <div class="analytics-card chart-card">
+      <h3 style="font-size:15px;margin-bottom:14px">Platform Share</h3>
+      <canvas id="platformChart" height="110"></canvas>
+    </div>
+    <div class="analytics-card chart-card">
+      <h3 style="font-size:15px;margin-bottom:14px">Current Price vs Target</h3>
+      <canvas id="targetChart" height="110"></canvas>
+    </div>
+    <div class="analytics-card">
+      <h3 style="font-size:15px;margin-bottom:10px">Reading Guide</h3>
+      <div class="flow-grid">
+        <div class="flow-step">
+          <div class="flow-kicker">Graph 1</div>
+          <div class="flow-title">Trend</div>
+          <div class="flow-desc">Daily average movement across your tracked products.</div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-kicker">Graph 2</div>
+          <div class="flow-title">Platforms</div>
+          <div class="flow-desc">How your tracking entries are distributed by platform.</div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-kicker">Graph 3</div>
+          <div class="flow-title">Target Gap</div>
+          <div class="flow-desc">Compares latest product price against configured target.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const rows = {{ rows|tojson }};
+  const COLORS = {
+    flipkart: '#5b9cf6',
+    amazon: '#fbbf24',
+    myntra: '#fb7185',
+    snapdeal: '#f87171',
+    other: '#a78bfa'
+  };
+
+  const chartTextColor = '#8b93b5';
+  const chartGridColor = 'rgba(255,255,255,.06)';
+
+  function inr(v){ return '₹' + Number(v || 0).toLocaleString('en-IN'); }
+
+  function buildMetrics() {
+    const total = rows.length;
+    const avg = total ? Math.round(rows.reduce((s, r) => s + (Number(r.price) || 0), 0) / total) : 0;
+    const withTarget = rows.filter(r => r.target_price !== null && r.target_price !== undefined);
+    const hits = withTarget.filter(r => Number(r.price) <= Number(r.target_price)).length;
+    const hitRate = withTarget.length ? Math.round((hits / withTarget.length) * 100) : 0;
+    document.getElementById('mRows').textContent = total.toLocaleString('en-IN');
+    document.getElementById('mAvg').textContent = inr(avg);
+    document.getElementById('mHit').textContent = hitRate + '%';
+  }
+
+  function buildTrendChart() {
+    const map = {};
+    rows.forEach(r => {
+      const d = (r.created_at || '').slice(0, 10);
+      if (!d) return;
+      if (!map[d]) map[d] = {sum: 0, count: 0};
+      map[d].sum += Number(r.price) || 0;
+      map[d].count += 1;
+    });
+    const labels = Object.keys(map).sort().slice(-10);
+    const data = labels.map(d => Math.round(map[d].sum / map[d].count));
+    new Chart(document.getElementById('trendChart'), {
+      type: 'line',
+      data: { labels, datasets: [{ label: 'Avg Price', data, borderColor: '#22d3ee', backgroundColor: 'rgba(34,211,238,.18)', fill: true, tension: .35, pointRadius: 3 }] },
+      options: {
+        plugins: { legend: { labels: { color: chartTextColor } } },
+        scales: {
+          x: { ticks: { color: chartTextColor }, grid: { color: chartGridColor } },
+          y: { ticks: { color: chartTextColor, callback: (v) => inr(v) }, grid: { color: chartGridColor } }
+        }
+      }
+    });
+  }
+
+  function buildPlatformChart() {
+    const counts = {flipkart: 0, amazon: 0, myntra: 0, snapdeal: 0, other: 0};
+    rows.forEach(r => {
+      const p = (r.platform || '').toLowerCase();
+      counts[p] = (counts[p] ?? counts.other) + 1;
+      if (!(p in counts)) counts.other += 1;
+    });
+    const labels = ['Flipkart', 'Amazon', 'Myntra', 'Snapdeal', 'Other'];
+    const values = [counts.flipkart, counts.amazon, counts.myntra, counts.snapdeal, counts.other];
+    new Chart(document.getElementById('platformChart'), {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{ data: values, backgroundColor: [COLORS.flipkart, COLORS.amazon, COLORS.myntra, COLORS.snapdeal, COLORS.other], borderWidth: 0 }]
+      },
+      options: { plugins: { legend: { labels: { color: chartTextColor } } } }
+    });
+  }
+
+  function buildTargetChart() {
+    const latestByUrl = {};
+    rows.forEach(r => {
+      if (!latestByUrl[r.url]) latestByUrl[r.url] = r;
+    });
+    const list = Object.values(latestByUrl).filter(r => r.target_price);
+    const top = list.slice(0, 8);
+    const labels = top.map(r => (r.product_name || r.url || 'Item').slice(0, 22));
+    const current = top.map(r => Number(r.price) || 0);
+    const target = top.map(r => Number(r.target_price) || 0);
+    new Chart(document.getElementById('targetChart'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Current', data: current, backgroundColor: 'rgba(34,211,238,.65)', borderRadius: 8 },
+          { label: 'Target', data: target, backgroundColor: 'rgba(167,139,250,.6)', borderRadius: 8 }
+        ]
+      },
+      options: {
+        plugins: { legend: { labels: { color: chartTextColor } } },
+        scales: {
+          x: { ticks: { color: chartTextColor }, grid: { color: chartGridColor } },
+          y: { ticks: { color: chartTextColor, callback: (v) => inr(v) }, grid: { color: chartGridColor } }
+        }
+      }
+    });
+  }
+
+  buildMetrics();
+  if (!rows.length) {
+    document.querySelector('.analytics-grid').innerHTML = '<div class="alert alert-warn">No historical data yet. Track products to generate statistics.</div>';
+  } else {
+    buildTrendChart();
+    buildPlatformChart();
+    buildTargetChart();
+  }
+</script>
+{% endblock %}
