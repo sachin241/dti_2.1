@@ -37,6 +37,7 @@ from google.genai import types
 # ── App ────────────────────────────────────────────────────────────────────────
 app = FastAPI()
 IS_SHUTTING_DOWN = False
+IS_VERCEL = bool(os.getenv("VERCEL"))
 
 # Serve static assets (logo, etc.)
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -150,9 +151,14 @@ def _safe_get_product_price(url: str):
 def startup_event():
     global IS_SHUTTING_DOWN
     IS_SHUTTING_DOWN = False
-    os.makedirs("static/avatars", exist_ok=True)
+    # Vercel functions run on a mostly read-only filesystem, so this may fail.
+    try:
+        os.makedirs("static/avatars", exist_ok=True)
+    except Exception:
+        pass
     init_db()
-    start_price_scheduler()
+    if not IS_VERCEL:
+        start_price_scheduler()
     print("[Startup] Ember Noir theme loaded. Database initialized.")
 
 
@@ -160,7 +166,8 @@ def startup_event():
 def shutdown_event():
     global IS_SHUTTING_DOWN
     IS_SHUTTING_DOWN = True
-    stop_price_scheduler()
+    if not IS_VERCEL:
+        stop_price_scheduler()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -338,6 +345,11 @@ async def profile_avatar(request: Request, avatar: UploadFile = File(...)):
     r = require_login(request)
     if r: return r
     user = current_user(request)
+    if IS_VERCEL:
+        return RedirectResponse(
+            url="/profile?err=Avatar upload is disabled on this Vercel deployment",
+            status_code=302,
+        )
     
     if not avatar.content_type.startswith("image/"):
         return RedirectResponse(url="/profile?err=Only images allowed", status_code=302)

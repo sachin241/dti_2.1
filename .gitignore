@@ -23,3 +23,4 @@ prices.db
 
 debug-3b2a57.log
 *.log
+.vercel

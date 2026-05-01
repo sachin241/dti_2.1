@@ -116,6 +116,21 @@ Auto-detected from the URL — no manual selection needed.
 
 ---
 
+## ▲ Vercel Deployment Notes
+
+- Production URL: `https://dti-2-1.vercel.app`
+- Added `vercel.json` for Python routing (`main.py`) and full app route mapping.
+- Added `.vercel` to `.gitignore` to avoid committing local link metadata.
+- Serverless-safe changes in `main.py`:
+  - Background scheduler is disabled on Vercel runtime.
+  - Startup gracefully handles read-only filesystem paths.
+  - Avatar uploads are disabled on Vercel (ephemeral filesystem).
+- Configure required Vercel environment variables:
+  - `SECRET_KEY`, `GEMINI_API_KEY`, `SENDER_EMAIL`, `APP_PASSWORD`
+  - Optional: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`
+
+---
+
 ## 📂 File Structure
 
 ```
