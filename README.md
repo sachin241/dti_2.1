@@ -120,11 +120,13 @@ Auto-detected from the URL — no manual selection needed.
 
 - Deploy with `render.yaml` as a Docker web service.
 - A persistent disk is mounted at `/var/data` for:
-  - `prices.db`
   - uploaded avatars
+- The app uses Neon/Postgres automatically when `DATABASE_URL` is set.
+- Without `DATABASE_URL`, it falls back to SQLite at `/var/data/prices.db`.
 - The app exposes a health check at `/health`.
 - Selenium runs in Docker with system `chromium` and `chromedriver`.
 - Set these Render environment variables:
+  - Required for Neon: `DATABASE_URL`
   - Required: `GEMINI_API_KEY`
   - Optional: `SENDER_EMAIL`, `APP_PASSWORD`
   - Optional: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`
