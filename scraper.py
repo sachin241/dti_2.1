@@ -3,7 +3,9 @@
 Multi-platform price scraper.
 Supports: Flipkart · Amazon India · Myntra · Snapdeal
 """
+import os
 import re
+import shutil
 import time
 import urllib.request
 from typing import Tuple, Optional
@@ -20,6 +22,12 @@ from webdriver_manager.chrome import ChromeDriverManager
 
 def _make_driver() -> webdriver.Chrome:
     options = webdriver.ChromeOptions()
+    chrome_binary = os.getenv("CHROME_BINARY_PATH") or shutil.which("chromium") or shutil.which("google-chrome")
+    driver_path = os.getenv("CHROMEDRIVER_PATH") or shutil.which("chromedriver")
+
+    if chrome_binary:
+        options.binary_location = chrome_binary
+
     options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
@@ -39,10 +47,8 @@ def _make_driver() -> webdriver.Chrome:
     options.page_load_strategy = "eager"  # Don't wait for images/stylesheets
     prefs = {"profile.managed_default_content_settings.images": 2}  # Disable images
     options.add_experimental_option("prefs", prefs)
-    return webdriver.Chrome(
-        service=Service(ChromeDriverManager().install()),
-        options=options
-    )
+    service = Service(driver_path) if driver_path else Service(ChromeDriverManager().install())
+    return webdriver.Chrome(service=service, options=options)
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────

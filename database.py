@@ -1,9 +1,16 @@
 # database.py
+import os
 import sqlite3
 from contextlib import contextmanager
 from typing import List, Optional, Tuple
 
-DB_NAME = "prices.db"
+
+def _default_db_path() -> str:
+    data_dir = os.getenv("DATA_DIR") or "."
+    return os.path.join(data_dir, "prices.db")
+
+
+DB_NAME = os.getenv("DB_PATH", _default_db_path())
 
 
 @contextmanager

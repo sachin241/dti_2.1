@@ -1,0 +1,21 @@
+.git
+.gitignore
+.venv
+venv
+env
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.vscode
+.idea
+.env
+.env.*
+prices.db
+*.db
+debug-3b2a57.log
+*.log
+Smart price tracker.zip

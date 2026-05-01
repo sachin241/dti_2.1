@@ -38,16 +38,21 @@ from google.genai import types
 app = FastAPI()
 IS_SHUTTING_DOWN = False
 IS_VERCEL = bool(os.getenv("VERCEL"))
+IS_RENDER = bool(os.getenv("RENDER"))
+DATA_DIR = os.getenv("DATA_DIR") or "."
+UPLOADS_DIR = os.path.join(DATA_DIR, "avatars")
+ENABLE_SCHEDULER = os.getenv("ENABLE_SCHEDULER", "false" if IS_RENDER else "true").lower() == "true"
 
 # Serve static assets (logo, etc.)
 app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR, check_dir=False), name="uploads")
 
 app.add_middleware(
     SessionMiddleware,
     secret_key = os.getenv("SECRET_KEY", secrets.token_hex(32)),
     max_age    = 60 * 60 * 24 * 7,
     same_site  = "lax",
-    https_only = False,
+    https_only = os.getenv("SESSION_HTTPS_ONLY", "true" if IS_RENDER else "false").lower() == "true",
 )
 
 templates = Jinja2Templates(directory="templates")
@@ -151,13 +156,13 @@ def _safe_get_product_price(url: str):
 def startup_event():
     global IS_SHUTTING_DOWN
     IS_SHUTTING_DOWN = False
-    # Vercel functions run on a mostly read-only filesystem, so this may fail.
+    os.makedirs(DATA_DIR, exist_ok=True)
     try:
-        os.makedirs("static/avatars", exist_ok=True)
+        os.makedirs(UPLOADS_DIR, exist_ok=True)
     except Exception:
         pass
     init_db()
-    if not IS_VERCEL:
+    if not IS_VERCEL and ENABLE_SCHEDULER:
         start_price_scheduler()
     print("[Startup] Ember Noir theme loaded. Database initialized.")
 
@@ -166,7 +171,7 @@ def startup_event():
 def shutdown_event():
     global IS_SHUTTING_DOWN
     IS_SHUTTING_DOWN = True
-    if not IS_VERCEL:
+    if not IS_VERCEL and ENABLE_SCHEDULER:
         stop_price_scheduler()
 
 
@@ -370,10 +375,10 @@ async def profile_avatar(request: Request, avatar: UploadFile = File(...)):
         img = img.resize((200, 200), Image.Resampling.LANCZOS)
 
         filename = f"{hashlib.sha256(user['email'].encode()).hexdigest()[:12]}.jpg"
-        filepath = os.path.join("static", "avatars", filename)
+        filepath = os.path.join(UPLOADS_DIR, filename)
         img.save(filepath, "JPEG", quality=90)
-        
-        url = f"/static/avatars/{filename}"
+
+        url = f"/uploads/{filename}"
         update_user_picture(user["email"], url)
         
         # Update session
@@ -398,6 +403,11 @@ def home(request: Request):
         "index.html",
         base_ctx(request, current_user(request), active="home"),
     )
+
+
+@app.get("/health")
+def healthcheck():
+    return {"status": "ok"}
 
 # ── Profile ───────────────────────────────────────────────────────────────────
 @app.get("/profile", response_class=HTMLResponse)
