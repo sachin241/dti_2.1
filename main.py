@@ -7,6 +7,7 @@ import re
 import asyncio
 import json
 import time
+from datetime import date, datetime
 from typing import List, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
@@ -56,6 +57,33 @@ app.add_middleware(
 )
 
 templates = Jinja2Templates(directory="templates")
+
+
+def format_datetime(value, fmt: str = "%Y-%m-%d %H:%M") -> str:
+    """Format datetime-like values safely for templates."""
+    if not value:
+        return ""
+    if isinstance(value, datetime):
+        return value.strftime(fmt)
+    if isinstance(value, date):
+        return value.strftime(fmt)
+    return str(value)
+
+
+def _json_ready(value):
+    """Convert datetime values to strings so template JSON stays portable."""
+    if isinstance(value, datetime):
+        return value.strftime("%Y-%m-%d %H:%M:%S")
+    if isinstance(value, date):
+        return value.strftime("%Y-%m-%d")
+    if isinstance(value, list):
+        return [_json_ready(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _json_ready(item) for key, item in value.items()}
+    return value
+
+
+templates.env.filters["datetimeformat"] = format_datetime
 
 LOGGED_IN_USERS: set = set()
 
@@ -584,7 +612,7 @@ def analytics_page(request: Request):
     return templates.TemplateResponse(
         request,
         "analytics.html",
-        base_ctx(request, user, active="analytics", extra={"rows": rows}),
+        base_ctx(request, user, active="analytics", extra={"rows": _json_ready(rows)}),
     )
 
 

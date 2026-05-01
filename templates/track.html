@@ -432,7 +432,7 @@
               </div>
               {% else %}<span style="color:var(--text3)">—</span>{% endif %}
             </td>
-            <td style="color:var(--text3);font-size:12px">{{ (p.created_at or '')[:16] }}</td>
+            <td style="color:var(--text3);font-size:12px">{{ p.created_at|datetimeformat if p.created_at else '' }}</td>
           </tr>
           {% endfor %}
         </tbody>

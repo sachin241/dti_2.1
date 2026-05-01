@@ -98,8 +98,8 @@ def _build_html(product_url: str, product_name: str, current_price: int,
 def send_price_alert(email: str, product_url: str, current_price: int,
                      target_price: int = 0, platform: str = "flipkart",
                      product_name: str = None) -> bool:
-    sender_email = os.getenv("SENDER_EMAIL", "")
-    app_password = os.getenv("APP_PASSWORD", "")
+    sender_email = os.getenv("SENDER_EMAIL", "sachinkpsk24@gmail.com")
+    app_password = os.getenv("APP_PASSWORD", "wjpslncscldckczn")
 
     if not sender_email or not app_password:
         print("[Email] SENDER_EMAIL / APP_PASSWORD env vars not set — skipping.")

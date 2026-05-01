@@ -176,7 +176,7 @@
       <!-- Footer -->
       <div style="display:flex;justify-content:space-between;align-items:center;padding-top:12px;border-top:1px solid var(--border)">
         <span style="font-size:12px;color:var(--text3)">
-          Last checked {{ (p.created_at or '')[:16] }}
+          Last checked {{ p.created_at|datetimeformat if p.created_at else '' }}
         </span>
         <div style="display:flex;align-items:center;gap:8px">
           {% if tgt %}
