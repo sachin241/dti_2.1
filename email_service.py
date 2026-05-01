@@ -3,8 +3,11 @@ import os
 import smtplib
 import json
 import time
+import logging
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+
+logger = logging.getLogger(__name__)
 
 
 PLATFORM_COLORS = {
@@ -98,43 +101,75 @@ def _build_html(product_url: str, product_name: str, current_price: int,
 def send_price_alert(email: str, product_url: str, current_price: int,
                      target_price: int = 0, platform: str = "flipkart",
                      product_name: str = None) -> bool:
-    sender_email = os.getenv("SENDER_EMAIL", "sachinkpsk24@gmail.com")
-    app_password = os.getenv("APP_PASSWORD", "wjpslncscldckczn")
+    """Send price alert email with comprehensive logging."""
+    logger.info(f"[Email] Attempting to send alert to {email} for {product_url}")
+
+    # Get credentials
+    sender_email = os.getenv("SENDER_EMAIL")
+    app_password = os.getenv("APP_PASSWORD")
+
+    logger.debug(f"[Email] SENDER_EMAIL set: {bool(sender_email)}")
+    logger.debug(f"[Email] APP_PASSWORD set: {bool(app_password)}")
 
     if not sender_email or not app_password:
-        print("[Email] SENDER_EMAIL / APP_PASSWORD env vars not set — skipping.")
+        logger.error("[Email] SENDER_EMAIL or APP_PASSWORD not set - cannot send email")
+        logger.error(f"[Email] SENDER_EMAIL: '{sender_email}'")
+        logger.error(f"[Email] APP_PASSWORD: '{'*' * len(app_password) if app_password else 'None'}'")
         return False
-
-
-    pname   = PLATFORM_NAMES.get(platform, platform.title())
-    subject = f"🎯 Price Drop! ₹{current_price:,} on {pname}"
-
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"]    = f"Smart Price Tracker <{sender_email}>"
-    msg["To"]      = email
-
-    # Plain text fallback
-    display = product_name or product_url
-    plain   = (
-        f"Price alert for: {display}\n\n"
-        f"Current price : ₹{current_price:,}\n"
-        f"Your target   : ₹{target_price:,}\n"
-        f"Platform      : {pname}\n\n"
-        f"Buy now: {product_url}"
-    )
-    msg.attach(MIMEText(plain, "plain"))
-    msg.attach(MIMEText(
-        _build_html(product_url, product_name, current_price, target_price, platform),
-        "html"
-    ))
 
     try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+        # Build email content
+        pname = PLATFORM_NAMES.get(platform, platform.title())
+        subject = f"🎯 Price Drop! ₹{current_price:,} on {pname}"
+
+        logger.debug(f"[Email] Building email: subject='{subject}', platform='{platform}'")
+
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = f"Smart Price Tracker <{sender_email}>"
+        msg["To"] = email
+
+        # Plain text fallback
+        display = product_name or product_url
+        plain = (
+            f"Price alert for: {display}\n\n"
+            f"Current price : ₹{current_price:,}\n"
+            f"Your target   : ₹{target_price:,}\n"
+            f"Platform      : {pname}\n\n"
+            f"Buy now: {product_url}"
+        )
+        msg.attach(MIMEText(plain, "plain"))
+        msg.attach(MIMEText(
+            _build_html(product_url, product_name, current_price, target_price, platform),
+            "html"
+        ))
+
+        logger.debug(f"[Email] Email content built, size: {len(str(msg))} chars")
+
+        # Send email
+        logger.info(f"[Email] Connecting to SMTP server...")
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30) as server:
+            logger.debug("[Email] Connected to SMTP server")
+            logger.debug(f"[Email] Logging in as {sender_email}")
             server.login(sender_email, app_password)
+            logger.debug("[Email] Login successful")
+
+            logger.debug(f"[Email] Sending message to {email}")
             server.send_message(msg)
-        print(f"[Email] Alert sent to {email}")
+            logger.debug("[Email] Message sent successfully")
+
+        logger.info(f"[Email] Alert sent successfully to {email}")
         return True
+
+    except smtplib.SMTPAuthenticationError as exc:
+        logger.error(f"[Email] SMTP Authentication failed for {email}: {exc}")
+        logger.error("[Email] Check APP_PASSWORD and SENDER_EMAIL credentials")
+    except smtplib.SMTPConnectError as exc:
+        logger.error(f"[Email] SMTP Connection failed for {email}: {exc}")
+        logger.error("[Email] Check internet connection and Gmail SMTP settings")
+    except smtplib.SMTPException as exc:
+        logger.error(f"[Email] SMTP error for {email}: {exc}")
     except Exception as exc:
-        print(f"[Email] Failed for {email}: {exc}")
-        return False
+        logger.error(f"[Email] Unexpected error sending to {email}: {exc}", exc_info=True)
+
+    return False

@@ -184,15 +184,38 @@ def _safe_get_product_price(url: str):
 def startup_event():
     global IS_SHUTTING_DOWN
     IS_SHUTTING_DOWN = False
+
+    print(f"[Startup] Environment: IS_RENDER={IS_RENDER}, IS_VERCEL={IS_VERCEL}")
+    print(f"[Startup] ENABLE_SCHEDULER={ENABLE_SCHEDULER}")
+    print(f"[Startup] DATA_DIR={DATA_DIR}")
+    print(f"[Startup] Database URL set: {bool(os.getenv('DATABASE_URL'))}")
+
     os.makedirs(DATA_DIR, exist_ok=True)
     try:
         os.makedirs(UPLOADS_DIR, exist_ok=True)
-    except Exception:
-        pass
-    init_db()
+        print(f"[Startup] Created uploads directory: {UPLOADS_DIR}")
+    except Exception as e:
+        print(f"[Startup] Warning: Could not create uploads directory: {e}")
+
+    try:
+        init_db()
+        print("[Startup] Database initialized successfully")
+    except Exception as e:
+        print(f"[Startup] ERROR: Database initialization failed: {e}")
+        raise
+
     if not IS_VERCEL and ENABLE_SCHEDULER:
-        start_price_scheduler()
-    print("[Startup] Ember Noir theme loaded. Database initialized.")
+        print("[Startup] Starting price scheduler...")
+        try:
+            start_price_scheduler()
+            print("[Startup] Price scheduler started successfully")
+        except Exception as e:
+            print(f"[Startup] ERROR: Failed to start scheduler: {e}")
+            raise
+    else:
+        print("[Startup] Scheduler not started (Vercel mode or disabled)")
+
+    print("[Startup] Ember Noir theme loaded. Application ready.")
 
 
 @app.on_event("shutdown")
@@ -435,7 +458,89 @@ def home(request: Request):
 
 @app.get("/health")
 def healthcheck():
-    return {"status": "ok"}
+    """Enhanced health check with scheduler and database status."""
+    import time
+    from scheduler import scheduler
+    from database import get_db, IS_POSTGRES
+
+    health = {
+        "status": "ok",
+        "timestamp": time.time(),
+        "environment": {
+            "is_render": IS_RENDER,
+            "is_vercel": IS_VERCEL,
+            "enable_scheduler": ENABLE_SCHEDULER,
+            "database_url_set": bool(os.getenv("DATABASE_URL")),
+            "is_postgres": IS_POSTGRES,
+            "data_dir": DATA_DIR,
+        },
+        "scheduler": {
+            "enabled": ENABLE_SCHEDULER and not IS_VERCEL,
+            "running": scheduler.running if hasattr(scheduler, 'running') else False,
+            "jobs": []
+        },
+        "database": {
+            "connection_ok": False,
+            "product_count": 0,
+            "user_count": 0,
+            "alert_count": 0,
+        }
+    }
+
+    # Check scheduler jobs
+    if scheduler.running:
+        try:
+            jobs = scheduler.get_jobs()
+            health["scheduler"]["jobs"] = [
+                {
+                    "id": job.id,
+                    "name": job.name,
+                    "next_run": job.next_run_time.isoformat() if job.next_run_time else None,
+                    "trigger": str(job.trigger)
+                } for job in jobs
+            ]
+        except Exception as e:
+            health["scheduler"]["error"] = str(e)
+
+    # Check database
+    try:
+        with get_db() as conn:
+            if IS_POSTGRES:
+                health["database"]["product_count"] = conn.execute("SELECT COUNT(*) FROM products").fetchone()["count"]
+                health["database"]["user_count"] = conn.execute("SELECT COUNT(*) FROM user_logins").fetchone()["count"]
+                health["database"]["alert_count"] = conn.execute("SELECT COUNT(*) FROM alert_log").fetchone()["count"]
+            else:
+                health["database"]["product_count"] = conn.execute("SELECT COUNT(*) FROM products").fetchone()[0]
+                health["database"]["user_count"] = conn.execute("SELECT COUNT(*) FROM user_logins").fetchone()[0]
+                health["database"]["alert_count"] = conn.execute("SELECT COUNT(*) FROM alert_log").fetchone()[0]
+            health["database"]["connection_ok"] = True
+    except Exception as e:
+        health["database"]["error"] = str(e)
+        health["status"] = "error"
+
+    return health
+
+
+@app.post("/debug/trigger-price-check")
+def debug_trigger_price_check():
+    """Debug endpoint to manually trigger price check (requires ENABLE_SCHEDULER=true)."""
+    if not ENABLE_SCHEDULER:
+        return {"error": "Scheduler is disabled"}
+
+    try:
+        from scheduler import check_prices
+        import threading
+
+        # Run in background thread to avoid blocking
+        thread = threading.Thread(target=check_prices)
+        thread.daemon = True
+        thread.start()
+
+        return {"status": "Price check triggered in background thread"}
+
+    except Exception as e:
+        return {"error": f"Failed to trigger price check: {e}"}
+
 
 # ── Profile ───────────────────────────────────────────────────────────────────
 @app.get("/profile", response_class=HTMLResponse)

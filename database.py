@@ -262,16 +262,28 @@ def get_price_rows_by_email(email: str, limit: int = 300) -> List[dict]:
 def get_all_tracked_products() -> List[dict]:
     """Return one latest record per (url, email) pair for the scheduler."""
     with get_db() as conn:
-        rows = conn.execute(
-            """
-            SELECT url, email, target_price, platform, product_name
-            FROM products
-            WHERE id IN (
-                SELECT MAX(id) FROM products
-                GROUP BY url, email
-            )
-            """
-        ).fetchall()
+        if IS_POSTGRES:
+            rows = conn.execute(
+                """
+                SELECT url, email, target_price, platform, product_name
+                FROM products
+                WHERE id IN (
+                    SELECT MAX(id) FROM products
+                    GROUP BY url, email
+                )
+                """
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """
+                SELECT url, email, target_price, platform, product_name
+                FROM products
+                WHERE id IN (
+                    SELECT MAX(id) FROM products
+                    GROUP BY url, email
+                )
+                """
+            ).fetchall()
         return _fetchall_dicts(rows)
 
 
