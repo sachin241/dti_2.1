@@ -1,255 +1,511 @@
 {% extends "base.html" %}
-{% block title %}Compare Prices{% endblock %}
+{% block title %}Smart Compare · Price Tarcker{% endblock %}
 
 {% block head %}
 <style>
-  .compare-card{
-    background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:24px;
-    transition:border-color .2s,transform .2s,box-shadow .2s;
-  }
-  .compare-card:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.4)}
+  /* ── Flash AI Compare — Ember Noir ─────────────────────────── */
+  .flash-page { max-width: 720px; margin: 0 auto; padding: 2rem 1.2rem 4rem; }
 
-  .platform-row{
-    display:flex;align-items:center;justify-content:space-between;
-    padding:12px 16px;border-radius:var(--r2);margin-bottom:8px;
-    border:1px solid var(--border);transition:border-color .15s;
+  /* Hero */
+  .flash-hero { text-align: center; margin-bottom: 2.5rem; }
+  .flash-hero .flash-icon {
+    width: 64px; height: 64px; margin: 0 auto 1rem;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 18px; display: flex; align-items: center; justify-content: center;
+    font-size: 28px; box-shadow: 0 8px 32px rgba(232,99,10,.3);
+    animation: pulse-glow 2s ease-in-out infinite alternate;
   }
-  .platform-row:last-child{margin-bottom:0}
-  .platform-row.is-lowest{
-    border-color:rgba(52,211,153,.3);
-    background:rgba(52,211,153,.06);
+  @keyframes pulse-glow {
+    from { box-shadow: 0 8px 32px rgba(232,99,10,.25); }
+    to   { box-shadow: 0 12px 48px rgba(232,99,10,.45); }
   }
-  .platform-row .price{font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700}
-  .platform-row.is-lowest .price{color:var(--green)}
+  .flash-hero h1 {
+    font-size: 1.8rem; font-weight: 800; margin: 0 0 .4rem;
+    background: linear-gradient(135deg, var(--text), var(--accent2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .flash-hero p { color: var(--text2); font-size: .92rem; max-width: 460px; margin: 0 auto; }
 
-  .chart-wrap{
-    background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);
-    padding:28px;margin-top:28px;
+  /* Search */
+  .flash-search {
+    display: flex; gap: .5rem; margin-bottom: 2rem;
+    background: var(--bg2); border: 1px solid var(--border2);
+    border-radius: var(--r2); padding: .5rem; transition: border-color .3s;
+  }
+  .flash-search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(232,99,10,.12); }
+  .flash-search input {
+    flex: 1; background: transparent; border: none; outline: none;
+    color: var(--text); font-size: .9rem; padding: .5rem .8rem;
+  }
+  .flash-search input::placeholder { color: var(--text3); }
+  .flash-search button {
+    background: linear-gradient(135deg, var(--accent), #c2410c); color: #fff;
+    border: none; border-radius: var(--r3); padding: .6rem 1.4rem;
+    font-weight: 700; font-size: .85rem; cursor: pointer;
+    transition: transform .15s, box-shadow .2s; white-space: nowrap;
+  }
+  .flash-search button:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(232,99,10,.35); }
+
+  /* Quick chips */
+  .flash-chips { display: flex; gap: .5rem; margin-bottom: 2rem; flex-wrap: wrap; justify-content: center; }
+  .flash-chip {
+    background: var(--bg3); border: 1px solid var(--border); border-radius: 20px;
+    padding: .35rem .9rem; font-size: .78rem; color: var(--text2); cursor: pointer;
+    transition: all .2s;
+  }
+  .flash-chip:hover { border-color: var(--accent); color: var(--accent); background: rgba(232,99,10,.06); }
+
+  /* Results Container */
+  #compare-state { min-height: 200px; }
+
+  /* Idle / Loading / Error */
+  .state-idle, .state-error { text-align: center; padding: 3rem 1rem; }
+  .state-idle h3 { color: var(--text2); font-size: 1rem; margin: 0 0 .4rem; }
+  .state-idle p { color: var(--text3); font-size: .85rem; margin: 0; }
+  .state-error p { color: var(--red); font-size: .9rem; margin: 0; }
+
+  .state-loading { text-align: center; padding: 3rem; }
+  .loader {
+    width: 36px; height: 36px; margin: 0 auto 1rem;
+    border: 3px solid var(--border2); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .state-loading p { color: var(--text2); font-size: .9rem; }
+  .loading-steps { margin-top: 1rem; display: flex; flex-direction: column; gap: .4rem; align-items: center; }
+  .loading-step {
+    font-size: .78rem; color: var(--text3); display: flex; align-items: center; gap: .4rem;
+    opacity: 0; animation: fadeUp .4s ease forwards;
+  }
+  .loading-step.done { color: var(--green); }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+
+  /* ── AI Verdict Card ────────────────────────────── */
+  .verdict-card {
+    background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--r);
+    padding: 1.5rem; margin-bottom: 1.5rem; position: relative; overflow: hidden;
+    animation: slideIn .4s ease;
+  }
+  @keyframes slideIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+  .verdict-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2), var(--green));
+  }
+  .verdict-header { display: flex; align-items: center; gap: .75rem; margin-bottom: 1rem; }
+  .verdict-badge {
+    padding: .35rem .9rem; border-radius: 20px; font-size: .75rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .04em;
+  }
+  .verdict-badge.buy { background: rgba(74,222,128,.12); color: var(--green); border: 1px solid rgba(74,222,128,.2); }
+  .verdict-badge.wait { background: rgba(252,211,77,.12); color: var(--yellow); border: 1px solid rgba(252,211,77,.2); }
+  .verdict-badge.skip { background: rgba(248,113,113,.12); color: var(--red); border: 1px solid rgba(248,113,113,.2); }
+  .verdict-title { font-size: 1.1rem; font-weight: 700; color: var(--text); flex: 1; }
+  .verdict-body { color: var(--text2); font-size: .88rem; line-height: 1.6; }
+  .verdict-body strong { color: var(--text); }
+
+  /* ── Product Summary ────────────────────────────── */
+  .product-summary {
+    background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--r);
+    padding: 1.2rem 1.5rem; margin-bottom: 1.5rem;
+    display: flex; align-items: center; gap: 1.2rem;
+    animation: slideIn .35s ease;
+  }
+  .product-name { font-size: 1rem; font-weight: 700; color: var(--text); line-height: 1.4; flex: 1; }
+  .product-name small { display: block; color: var(--text3); font-size: .78rem; font-weight: 400; margin-top: .2rem; }
+  .best-price-tag {
+    background: linear-gradient(135deg, rgba(74,222,128,.12), rgba(74,222,128,.05));
+    border: 1px solid rgba(74,222,128,.2); border-radius: var(--r2);
+    padding: .6rem 1rem; text-align: center; flex-shrink: 0;
+  }
+  .best-price-tag .label { font-size: .65rem; color: var(--green); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+  .best-price-tag .amount { font-size: 1.3rem; font-weight: 800; color: var(--green); }
+
+  /* ── Store Cards ─────────────────────────────────── */
+  .section-label {
+    font-size: .75rem; font-weight: 700; color: var(--text3); text-transform: uppercase;
+    letter-spacing: .06em; margin-bottom: .75rem; display: flex; align-items: center; gap: .5rem;
+  }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  .store-list { display: flex; flex-direction: column; gap: .6rem; margin-bottom: 1.5rem; }
+  .store-card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--r2); padding: 1rem 1.2rem;
+    display: flex; align-items: center; gap: 1rem;
+    transition: all .2s; animation: slideIn .3s ease;
+  }
+  .store-card:hover { border-color: var(--border2); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,.15); }
+  .store-card.best { border-color: rgba(74,222,128,.3); background: rgba(74,222,128,.04); }
+
+  .store-icon {
+    width: 42px; height: 42px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; color: #fff; font-size: .8rem; flex-shrink: 0;
+  }
+  .store-icon.flipkart { background: #2874F0; }
+  .store-icon.amazon   { background: #FF9900; }
+  .store-icon.myntra   { background: #FF3F6C; }
+  .store-icon.snapdeal { background: #E40000; }
+
+  .store-details { flex: 1; }
+  .store-name { font-weight: 700; font-size: .9rem; color: var(--text); }
+  .store-savings { font-size: .78rem; color: var(--green); font-weight: 600; margin-top: .15rem; }
+  .store-more-expensive { font-size: .78rem; color: var(--red); font-weight: 500; margin-top: .15rem; }
+
+  .store-right { display: flex; align-items: center; gap: .8rem; }
+  .store-price { font-size: 1.1rem; font-weight: 800; color: var(--text); }
+  .store-card.best .store-price { color: var(--green); }
+
+  .visit-link {
+    display: inline-flex; align-items: center; gap: .3rem;
+    background: var(--bg3); border: 1px solid var(--border); border-radius: var(--r3);
+    padding: .4rem .8rem; font-size: .75rem; font-weight: 600; color: var(--text2);
+    text-decoration: none; transition: all .2s; white-space: nowrap;
+  }
+  .visit-link:hover { border-color: var(--accent); color: var(--accent); background: rgba(232,99,10,.06); }
+
+  /* ── Not Found Banner ───────────────────────────── */
+  .not-found {
+    background: rgba(252,211,77,.06); border: 1px solid rgba(252,211,77,.15);
+    border-radius: var(--r3); padding: .6rem 1rem; margin-bottom: 1rem;
+    font-size: .8rem; color: var(--yellow); display: flex; align-items: center; gap: .5rem;
   }
 
-  .search-bar{
-    display:flex;gap:12px;margin-bottom:28px;
+  /* ── AI Analysis Section ────────────────────────── */
+  .ai-analysis {
+    background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--r);
+    padding: 1.5rem; animation: slideIn .5s ease;
   }
-  .search-bar .input{flex:1;font-size:15px;padding:13px 18px}
-  .search-bar .btn{flex-shrink:0;font-size:14px;padding:13px 22px}
+  .ai-analysis-header {
+    display: flex; align-items: center; gap: .6rem; margin-bottom: 1rem;
+    padding-bottom: .75rem; border-bottom: 1px solid var(--border);
+  }
+  .ai-analysis-header .ai-spark { font-size: 1.1rem; }
+  .ai-analysis-header h3 { font-size: .95rem; font-weight: 700; color: var(--text); margin: 0; }
+  .ai-analysis-header .powered { font-size: .7rem; color: var(--text3); margin-left: auto; }
+  .ai-analysis-body { color: var(--text2); font-size: .85rem; line-height: 1.7; }
+  .ai-analysis-body strong { color: var(--text); }
+  .ai-analysis-body ul { padding-left: 1.2rem; margin: .5rem 0; }
+  .ai-analysis-body li { margin-bottom: .3rem; }
+  .ai-loading { display: flex; align-items: center; gap: .6rem; color: var(--text3); font-size: .85rem; }
+  .ai-dots span {
+    display: inline-block; width: 6px; height: 6px; background: var(--accent);
+    border-radius: 50%; animation: blink 1.2s infinite;
+  }
+  .ai-dots span:nth-child(2) { animation-delay: .2s; }
+  .ai-dots span:nth-child(3) { animation-delay: .4s; }
+  @keyframes blink { 0%,80%,100%{opacity:.2} 40%{opacity:1} }
 
-  .savings-badge{
-    display:inline-flex;align-items:center;gap:6px;
-    background:rgba(52,211,153,.1);color:var(--green);
-    border:1px solid rgba(52,211,153,.22);
-    border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;
-    margin-top:14px;
+  /* ── Meta bar ───────────────────────────────────── */
+  .meta-bar {
+    display: flex; align-items: center; gap: 1rem; margin-bottom: .75rem;
+    font-size: .78rem; color: var(--text3);
   }
+  .meta-bar button {
+    background: var(--bg3); border: 1px solid var(--border); border-radius: var(--r3);
+    padding: .3rem .7rem; font-size: .75rem; color: var(--text2); cursor: pointer;
+    transition: all .2s; font-weight: 600;
+  }
+  .meta-bar button:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Mobile */
+  @media (max-width: 600px) {
+    .flash-page { padding: 1.2rem .8rem 3rem; }
+    .flash-hero h1 { font-size: 1.4rem; }
+    .store-card { padding: .85rem; gap: .7rem; }
+    .store-icon { width: 36px; height: 36px; font-size: .7rem; }
+    .store-price { font-size: .95rem; }
+    .product-summary { flex-direction: column; text-align: center; }
+  }
+  .store-meta-dim { font-size: .78rem; color: var(--text3); margin-top: .15rem; font-style: italic; }
+  .store-price-na { font-size: .95rem; font-weight: 700; color: var(--text3); }
+  .not-found-card { border-style: dashed !important; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="page">
+<div class="flash-page">
 
-  <!-- Header -->
-  <div class="a1" style="margin-bottom:28px">
-    <h1 style="font-size:30px;margin-bottom:8px">Price Comparison</h1>
-    <p style="color:var(--text2);font-size:15px">Search a product and instantly compare prices across all platforms.</p>
-  </div>
-
-  <!-- Stats -->
-  <div class="stats-row a2" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:28px">
-    <div class="stat-card">
-      <div class="stat-num" style="color:var(--green)">{{ logged_in_count }}</div>
-      <div class="stat-label">Users online</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-num" style="color:var(--accent2)">{{ trusted_count }}</div>
-      <div class="stat-label">Trusted users</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-num" style="color:var(--yellow)">4</div>
-      <div class="stat-label">Platforms</div>
-    </div>
+  <!-- Hero -->
+  <div class="flash-hero">
+    <div class="flash-icon">⚡</div>
+    <h1>Smart Price Compare</h1>
+    <p>Paste any product link — we'll find the best price across all platforms and tell you if it's worth buying.</p>
   </div>
 
   <!-- Search -->
-  <div class="search-bar a2">
-    <input class="input" type="text" id="queryInput" placeholder="e.g. iPhone 15, Sony WH-1000XM5, Samsung S24…"/>
-    <button class="btn btn-primary" onclick="doCompare()">Compare →</button>
+  <div class="flash-search">
+    <input type="text" id="compare-url" placeholder="Paste a Flipkart, Amazon, Myntra or Snapdeal link…" autocomplete="off" />
+    <button onclick="doCompare()">⚡ Analyze</button>
   </div>
 
-  <!-- Results area -->
-  <div id="resultsWrap"></div>
-
-  <!-- Chart area -->
-  <div id="chartWrap" style="display:none" class="chart-wrap">
-    <h3 style="font-size:16px;margin-bottom:20px;color:var(--text2)">Price trend simulation (7 days)</h3>
-    <canvas id="priceChart" height="80"></canvas>
+  <!-- Quick chips -->
+  <div class="flash-chips">
+    <div class="flash-chip" onclick="document.getElementById('compare-url').focus()">📱 Phones</div>
+    <div class="flash-chip" onclick="document.getElementById('compare-url').focus()">👟 Shoes</div>
+    <div class="flash-chip" onclick="document.getElementById('compare-url').focus()">💻 Laptops</div>
+    <div class="flash-chip" onclick="document.getElementById('compare-url').focus()">🎧 Audio</div>
   </div>
 
+  <!-- Results -->
+  <div id="compare-state">
+    <div class="state-idle">
+      <h3>Your AI shopping assistant</h3>
+      <p>Paste a product link above — we'll compare prices, analyze the deal, and give you a buy or skip recommendation.</p>
+    </div>
+  </div>
 </div>
+
 {% endblock %}
 
 {% block scripts %}
 <script>
-const PLATFORM_COLORS={
-  flipkart:'#5b9cf6',
-  amazon:'#fbbf24',
-  myntra:'#fb7185',
-  snapdeal:'#f87171',
+const STORES = {
+  flipkart: { name: 'Flipkart', abbr: 'FK' },
+  amazon:   { name: 'Amazon.in', abbr: 'AM' },
+  myntra:   { name: 'Myntra', abbr: 'MY' },
+  snapdeal: { name: 'Snapdeal', abbr: 'SD' },
 };
-const PLATFORM_LABELS={
-  flipkart:'🛒 Flipkart',
-  amazon:'📦 Amazon',
-  myntra:'👗 Myntra',
-  snapdeal:'⚡ Snapdeal',
-};
-const BADGE_CLASS={flipkart:'badge-flip',amazon:'badge-amz',myntra:'badge-myn',snapdeal:'badge-snap'};
 
-let chartInst=null;
+function $(id) { return document.getElementById(id); }
+function setState(h) { $('compare-state').innerHTML = h; }
+function fmt(n) { return '₹' + Number(n).toLocaleString('en-IN'); }
 
-async function doCompare(){
-  const q=document.getElementById('queryInput').value.trim();
-  const wrap=document.getElementById('resultsWrap');
-  wrap.innerHTML='<div class="alert alert-info a2">🔍 Fetching prices across platforms…</div>';
-  document.getElementById('chartWrap').style.display='none';
+// Animated loading with steps
+function showLoading() {
+  setState(`
+    <div class="state-loading">
+      <div class="spinner-grad"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" class="track"/><circle cx="32" cy="32" r="26" class="path"/></svg></div>
+      <p>Analyzing product across all platforms…</p>
+      <div class="loading-steps" id="load-steps"></div>
+    </div>
+  `);
+  const steps = [
+    ['🔍','Scraping source product…'],
+    ['🛒','Searching Flipkart…'],
+    ['📦','Searching Amazon…'],
+    ['👗','Searching Myntra…'],
+    ['🏷️','Searching Snapdeal…'],
+    ['🧠','Generating AI analysis…'],
+  ];
+  steps.forEach((s, i) => {
+    setTimeout(() => {
+      const el = $('load-steps');
+      if (!el) return;
+      el.innerHTML += `<div class="loading-step" style="animation-delay:${i*0.1}s">${s[0]} ${s[1]}</div>`;
+    }, i * 2500);
+  });
+}
 
-  const res=await fetch('/api/compare?q='+encodeURIComponent(q||''));
-  const data=await res.json();
-  const items=data.comparisons||[];
-
-  if(!items.length){
-    wrap.innerHTML='<div class="alert alert-warn">No comparison data available yet. Try another keyword.</div>';
+async function doCompare() {
+  const url = $('compare-url').value.trim();
+  if (!url || !url.startsWith('http')) {
+    setState(`<div class="state-error"><p>⚠ Please paste a valid product URL (starts with https://)</p></div>`);
     return;
   }
 
-  const grid=document.createElement('div');
-  grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px';
+  showLoading();
 
-  items.forEach(item=>{
-    const sorted=[...item.prices].sort((a,b)=>a.price-b.price);
-    const lowestPrice=sorted[0].price;
-
-    let rows=item.prices.map(p=>{
-      const isLow=p.price===lowestPrice;
-      const siteKey=p.site.toLowerCase();
-      const bc=BADGE_CLASS[siteKey]||'badge-gray';
-      const pl=PLATFORM_LABELS[siteKey]||p.site;
-      return `<div class="platform-row${isLow?' is-lowest':''}">
-        <span class="badge ${bc}">${pl}</span>
-        <span class="price">₹${Number(p.price).toLocaleString('en-IN')}${isLow?' <span style="font-size:12px">🏆</span>':''}</span>
-      </div>`;
-    }).join('');
-
-    const savings=item.savings||0;
-    const card=document.createElement('div');
-    card.className='compare-card';
-    card.innerHTML=`
-      <h3 style="font-size:15px;font-weight:700;margin-bottom:16px;line-height:1.4">${item.product}</h3>
-      ${rows}
-      ${savings?`<div class="savings-badge">💰 Save ₹${Number(savings).toLocaleString('en-IN')} on ${item.lowest}</div>`:''}
-    `;
-    grid.appendChild(card);
-  });
-
-  wrap.innerHTML='';
-  wrap.appendChild(grid);
-
-  renderChart(items);
-}
-
-function renderChart(items){
-  if(!items||!items.length) return;
-  const chartWrap=document.getElementById('chartWrap');
-  const ctx=document.getElementById('priceChart');
-  chartWrap.style.display='block';
-
-  if(chartInst){chartInst.destroy();chartInst=null;}
-
-  const first=items[0];
-  const datasets=first.prices.map(p=>{
-    const base=p.price;
-    const steps=[0,800,600,450,300,200,100,0];
-    const siteKey=p.site.toLowerCase();
-    const color=PLATFORM_COLORS[siteKey]||'#888';
-    return{
-      label:PLATFORM_LABELS[siteKey]||p.site,
-      data:steps.map((d,i)=>base+(steps[i]||0)),
-      borderColor:color,
-      backgroundColor:color+'18',
-      fill:true,
-      tension:.4,
-      pointBackgroundColor:color,
-      pointRadius:4,
-      borderWidth:2,
-    };
-  });
-
-  chartInst=new Chart(ctx,{
-    type:'line',
-    data:{
-      labels:['7 days ago','6d','5d','4d','3d','2d','Yesterday','Today'],
-      datasets,
-    },
-    options:{
-      responsive:true,
-      plugins:{
-        legend:{labels:{color:'#8b93b5',font:{size:13,family:'Plus Jakarta Sans'}}},
-        tooltip:{
-          backgroundColor:'#0d1020',
-          borderColor:'rgba(255,255,255,.1)',
-          borderWidth:1,
-          titleColor:'#eef0f8',
-          bodyColor:'#8b93b5',
-          callbacks:{label:ctx=>`${ctx.dataset.label}: ₹${Number(ctx.parsed.y).toLocaleString('en-IN')}`}
-        }
-      },
-      scales:{
-        x:{ticks:{color:'#535b7e',font:{size:12}},grid:{color:'rgba(255,255,255,.04)'}},
-        y:{
-          ticks:{color:'#535b7e',font:{size:12},callback:v=>'₹'+Number(v).toLocaleString('en-IN')},
-          grid:{color:'rgba(255,255,255,.04)'}
-        }
-      }
+  try {
+    const resp = await fetch(`/api/cross-search?url=${encodeURIComponent(url)}`);
+    if (!resp.ok) {
+      const d = await resp.json().catch(() => ({}));
+      setState(`<div class="state-error"><p>⚠ ${d.message || 'Could not fetch price. Check the URL.'}</p></div>`);
+      return;
     }
-  });
+    const data = await resp.json();
+    if (!data.results || data.results.length === 0) {
+      setState(`<div class="state-error"><p>⚠ No prices found. Try a different product link.</p></div>`);
+      return;
+    }
+    renderFlashResults(data);
+  } catch (err) {
+    setState(`<div class="state-error"><p>⚠ Network error: ${err.message}</p></div>`);
+  }
 }
 
-// Load default comparisons on page load
-(async function(){
-  const res=await fetch('/api/compare');
-  const data=await res.json();
-  const items=data.comparisons||[];
-  if(!items.length) return;
+function renderFlashResults(data) {
+  const results = data.results || [];
+  const name = data.product_name || 'Product';
+  const sourcePlatform = data.source_platform || '';
+  const sorted = [...results].sort((a, b) => a.price - b.price);
+  const best = sorted[0];
+  const worst = sorted[sorted.length - 1];
+  const spread = sorted.length > 1 ? worst.price - best.price : 0;
+  const spreadPct = worst && worst.price > 0 ? Math.round((spread / worst.price) * 100) : 0;
 
-  const grid=document.createElement('div');
-  grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px';
+  // Verdict logic
+  let verdict, verdictClass, verdictText;
+  if (sorted.length >= 2 && spreadPct >= 10) {
+    verdict = 'BUY'; verdictClass = 'buy';
+    verdictText = `<strong>Great deal on ${STORES[best.platform]?.name || best.platform}!</strong> It's <strong>${fmt(spread)} cheaper</strong> (${spreadPct}% less) than the highest price — a significant saving.`;
+  } else if (sorted.length >= 2 && spreadPct >= 3) {
+    verdict = 'WORTH IT'; verdictClass = 'buy';
+    verdictText = `<strong>${STORES[best.platform]?.name || best.platform}</strong> has the lowest price, ${fmt(spread)} cheaper than the most expensive option (${spreadPct}% saving).`;
+  } else if (sorted.length === 1) {
+    verdict = 'CHECK BACK'; verdictClass = 'wait';
+    verdictText = `Only found on <strong>${STORES[best.platform]?.name || best.platform}</strong> at <strong>${fmt(best.price)}</strong>. Use the search links below to check other stores manually, or <a href="/track" style="color:var(--accent);font-weight:600">track it</a> for price alerts.`;
+  } else {
+    verdict = 'PRICES SIMILAR'; verdictClass = 'wait';
+    verdictText = `Prices are nearly the same across all platforms (within ${spreadPct}%). Buy from whichever store you trust most.`;
+  }
 
-  items.forEach(item=>{
-    const sorted=[...item.prices].sort((a,b)=>a.price-b.price);
-    const lowestPrice=sorted[0].price;
-    let rows=item.prices.map(p=>{
-      const isLow=p.price===lowestPrice;
-      const siteKey=p.site.toLowerCase();
-      const bc=BADGE_CLASS[siteKey]||'badge-gray';
-      const pl=PLATFORM_LABELS[siteKey]||p.site;
-      return `<div class="platform-row${isLow?' is-lowest':''}">
-        <span class="badge ${bc}">${pl}</span>
-        <span class="price">₹${Number(p.price).toLocaleString('en-IN')}${isLow?' <span style="font-size:12px">🏆</span>':''}</span>
+  const found = new Set(results.map(r => r.platform));
+  const ALL_PLATFORMS = ['flipkart', 'amazon', 'myntra', 'snapdeal'];
+  const cleanQuery = encodeURIComponent(name.replace(/[^\w\s]/g, ' ').trim().split(' ').slice(0, 5).join(' '));
+
+  // Search URLs for each platform
+  const SEARCH_URLS = {
+    flipkart: `https://www.flipkart.com/search?q=${cleanQuery}`,
+    amazon:   `https://www.amazon.in/s?k=${cleanQuery}`,
+    myntra:   `https://www.myntra.com/search?rawQuery=${cleanQuery}`,
+    snapdeal: `https://www.snapdeal.com/search?keyword=${cleanQuery}`,
+  };
+
+  let html = '';
+
+  // Meta bar
+  html += `<div class="meta-bar">
+    <span>⏱ Updated just now · ${sorted.length} of 4 stores with prices</span>
+    <button onclick="doCompare()">🔄 Refresh</button>
+  </div>`;
+
+  // Verdict card
+  html += `
+    <div class="verdict-card">
+      <div class="verdict-header">
+        <span class="verdict-badge ${verdictClass}">${verdict}</span>
+        <span class="verdict-title">${name.length > 80 ? name.slice(0, 80) + '…' : name}</span>
+      </div>
+      <div class="verdict-body">${verdictText}</div>
+    </div>`;
+
+  // Product summary
+  if (best) {
+    html += `
+      <div class="product-summary">
+        <div class="product-name">
+          ${name.length > 120 ? name.slice(0, 120) + '…' : name}
+          <small>${sorted.length} of 4 platforms with live prices · Spread: ${fmt(spread)}</small>
+        </div>
+        <div class="best-price-tag">
+          <div class="label">Best Price</div>
+          <div class="amount">${fmt(best.price)}</div>
+        </div>
       </div>`;
-    }).join('');
-    const savings=item.savings||0;
-    const card=document.createElement('div');
-    card.className='compare-card';
-    card.innerHTML=`
-      <h3 style="font-size:15px;font-weight:700;margin-bottom:16px;line-height:1.4">${item.product}</h3>
-      ${rows}
-      ${savings?`<div class="savings-badge">💰 Save ₹${Number(savings).toLocaleString('en-IN')} on ${item.lowest}</div>`:''}
-    `;
-    grid.appendChild(card);
+  }
+
+  // Store list — ALWAYS show all 4 platforms
+  html += `<div class="section-label">All Platforms (4)</div>`;
+  html += `<div class="store-list">`;
+
+  // First render found platforms sorted by price
+  sorted.forEach((store, idx) => {
+    const info = STORES[store.platform] || { name: store.platform, abbr: '??' };
+    const isBest = idx === 0 && (sorted.length > 1);
+    const diff = best ? store.price - best.price : 0;
+    let meta = '';
+    if (idx === 0 && sorted.length === 1) {
+      meta = `<div class="store-savings">Only store found with live price</div>`;
+    } else if (isBest) {
+      meta = `<div class="store-savings">✓ Best price — save ${fmt(spread)} vs most expensive</div>`;
+    } else if (diff > 0) {
+      meta = `<div class="store-more-expensive">+${fmt(diff)} more than cheapest</div>`;
+    }
+
+    html += `
+      <div class="store-card ${isBest ? 'best' : ''}" style="animation-delay:${idx * 0.08}s">
+        <div class="store-icon ${store.platform}">${info.abbr}</div>
+        <div class="store-details">
+          <div class="store-name">${info.name}</div>
+          ${meta}
+        </div>
+        <div class="store-right">
+          <div class="store-price">${fmt(store.price)}</div>
+          <a href="${store.url || SEARCH_URLS[store.platform]}" target="_blank" rel="noopener" class="visit-link">Visit →</a>
+        </div>
+      </div>`;
   });
 
-  document.getElementById('resultsWrap').appendChild(grid);
-  renderChart(items);
-})();
+  // Then render NOT FOUND platforms with search links
+  ALL_PLATFORMS.forEach(p => {
+    if (found.has(p)) return; // already shown above
+    const info = STORES[p] || { name: p, abbr: '??' };
+    html += `
+      <div class="store-card not-found-card" style="opacity:.6">
+        <div class="store-icon ${p}">${info.abbr}</div>
+        <div class="store-details">
+          <div class="store-name">${info.name}</div>
+          <div class="store-meta-dim">Price not found automatically</div>
+        </div>
+        <div class="store-right">
+          <div class="store-price-na">N/A</div>
+          <a href="${SEARCH_URLS[p]}" target="_blank" rel="noopener" class="visit-link">Search →</a>
+        </div>
+      </div>`;
+  });
 
-// Enter key triggers compare
-document.getElementById('queryInput').addEventListener('keydown',e=>{if(e.key==='Enter')doCompare()});
+  html += `</div>`;
+
+  // AI Analysis section
+  html += `
+    <div class="ai-analysis">
+      <div class="ai-analysis-header">
+        <span class="ai-spark">🤖</span>
+        <h3>Price Tracker AI Assistant</h3>
+        <span class="powered">Powered by Gemini</span>
+      </div>
+      <div class="ai-analysis-body" id="ai-body">
+        <div class="ai-loading">
+          <div class="ai-dots"><span></span><span></span><span></span></div>
+          Analyzing prices and generating recommendations…
+        </div>
+      </div>
+    </div>`;
+
+  setState(html);
+  if (sorted.length > 0) fetchAIAnalysis(name, sorted);
+}
+
+async function fetchAIAnalysis(productName, stores) {
+  const priceList = stores.map(s => `${STORES[s.platform]?.name || s.platform}: ₹${Number(s.price).toLocaleString('en-IN')}`).join(', ');
+  const best = stores[0];
+  const worst = stores[stores.length - 1];
+  const spread = stores.length > 1 ? worst.price - best.price : 0;
+  const spreadPct = stores.length > 1 && worst.price > 0 ? Math.round(spread / worst.price * 100) : 0;
+
+  const prompt = stores.length > 1
+    ? `Product: "${productName}"\nLive prices across Indian e-commerce: ${priceList}.\nCheapest: ₹${Number(best.price).toLocaleString('en-IN')} on ${STORES[best.platform]?.name || best.platform}. Most expensive: ₹${Number(worst.price).toLocaleString('en-IN')} on ${STORES[worst.platform]?.name || worst.platform}. Price spread: ₹${Number(spread).toLocaleString('en-IN')} (${spreadPct}% difference).\n\nAs a shopping assistant, answer in 3-4 short bullet points:\n• Is this a fair/good price for this type of product in India right now?\n• Which platform should the user buy from and why (warranty, delivery, returns)?\n• Any timing tips — upcoming sales (Big Billion, Great Indian Festival, etc)?\n• One-line final verdict: BUY NOW / WAIT FOR SALE / SKIP`
+    : `Product: "${productName}"\nOnly found on ${STORES[best.platform]?.name || best.platform} at ₹${Number(best.price).toLocaleString('en-IN')}. Not available on other major platforms.\n\nAs a shopping assistant, answer in 3 short bullet points:\n• Is ₹${Number(best.price).toLocaleString('en-IN')} a fair price for this product?\n• Should the user buy now or wait?\n• Any alternative products or platforms to consider?`;
+
+  try {
+    const resp = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: prompt, history: [] })
+    });
+    const data = await resp.json();
+    const body = $('ai-body');
+    if (body && data.answer) {
+      let text = data.answer
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/^[-•]\s?/gm, '• ')
+        .replace(/\n/g, '<br>');
+      body.innerHTML = text;
+    } else if (body) {
+      body.innerHTML = '<span style="color:var(--text3)">AI unavailable — add GEMINI_API_KEY to .env</span>';
+    }
+  } catch {
+    const body = $('ai-body');
+    if (body) body.innerHTML = '<span style="color:var(--text3)">Price comparison above is accurate. AI temporarily unavailable.</span>';
+  }
+}
+
+// Enter key support
+document.addEventListener('DOMContentLoaded', () => {
+  const inp = $('compare-url');
+  if (inp) inp.addEventListener('keydown', e => { if (e.key === 'Enter') doCompare(); });
+});
 </script>
 {% endblock %}

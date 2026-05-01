@@ -3,192 +3,461 @@
 
 {% block head %}
 <style>
-  .analytics-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}
-  .analytics-card{
-    background:linear-gradient(135deg,rgba(255,255,255,.05),rgba(255,255,255,.015));
-    border:1px solid rgba(255,255,255,.12);
-    border-radius:var(--r);
-    padding:22px;
-    backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  /* ── Page Layout ── */
+  .an-page { max-width:1300px; margin:0 auto; padding:36px 28px; position:relative; z-index:1; }
+
+  /* ── Header ── */
+  .an-header { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:32px; flex-wrap:wrap; gap:16px; }
+  .an-title  { font-size:30px; font-weight:700; letter-spacing:-.03em; }
+  .an-sub    { color:var(--text2); font-size:13.5px; margin-top:4px; }
+  .an-badge  { display:inline-flex; align-items:center; gap:6px; background:rgba(52,211,153,.08);
+               border:1px solid rgba(52,211,153,.2); border-radius:20px; padding:5px 13px;
+               font-size:12px; font-weight:600; color:#34d399; }
+  .pulse     { width:7px; height:7px; border-radius:50%; background:#34d399;
+               animation:pulseAnim 1.6s ease-in-out infinite; }
+  @keyframes pulseAnim { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.6)} }
+
+  /* ── KPI Cards ── */
+  .kpi-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:14px; margin-bottom:24px; }
+  .kpi-card {
+    background:linear-gradient(145deg,rgba(255,255,255,.055),rgba(255,255,255,.015));
+    border:1px solid rgba(255,255,255,.1); border-radius:18px; padding:20px 22px;
+    backdrop-filter:blur(16px); position:relative; overflow:hidden; transition:transform .2s,box-shadow .2s;
   }
-  .chart-card canvas{max-height:320px}
-  .metrics{display:grid;grid-template-columns:repeat(3,minmax(140px,1fr));gap:12px}
-  .metric{padding:14px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid var(--border)}
-  .metric-k{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em}
-  .metric-v{font-size:24px;font-weight:700;margin-top:2px}
-  .subtle{color:var(--text2);font-size:13px}
-  @media (max-width: 980px){
-    .analytics-grid{grid-template-columns:1fr}
-    .metrics{grid-template-columns:1fr 1fr}
+  .kpi-card:hover { transform:translateY(-3px); box-shadow:0 12px 36px rgba(0,0,0,.35); }
+  .kpi-card::before { content:''; position:absolute; inset:0; border-radius:18px;
+    background:linear-gradient(135deg,rgba(255,255,255,.04),transparent); pointer-events:none; }
+  .kpi-icon  { font-size:22px; margin-bottom:10px; }
+  .kpi-val   { font-family:'Space Grotesk',sans-serif; font-size:28px; font-weight:700; line-height:1; }
+  .kpi-label { font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:.08em; margin-top:5px; }
+  .kpi-delta { display:inline-flex; align-items:center; gap:3px; font-size:11.5px; font-weight:600;
+               margin-top:8px; padding:2px 8px; border-radius:20px; }
+  .kpi-delta.up   { background:rgba(52,211,153,.1);  color:#34d399; }
+  .kpi-delta.down { background:rgba(248,113,113,.1); color:#f87171; }
+  .kpi-delta.neu  { background:rgba(139,147,181,.1); color:var(--text3); }
+  .kpi-glow-cyan   { box-shadow:inset 0 0 40px rgba(34,211,238,.04); border-color:rgba(34,211,238,.15); }
+  .kpi-glow-purple { box-shadow:inset 0 0 40px rgba(108,95,247,.04); border-color:rgba(108,95,247,.15); }
+  .kpi-glow-green  { box-shadow:inset 0 0 40px rgba(52,211,153,.04); border-color:rgba(52,211,153,.15); }
+  .kpi-glow-yellow { box-shadow:inset 0 0 40px rgba(251,191,36,.04); border-color:rgba(251,191,36,.15); }
+  .kpi-glow-pink   { box-shadow:inset 0 0 40px rgba(251,113,133,.04); border-color:rgba(251,113,133,.15); }
+
+  /* ── Chart Grid ── */
+  .chart-grid { display:grid; gap:16px; }
+  .chart-grid-top    { grid-template-columns:1.6fr 1fr; }
+  .chart-grid-mid    { grid-template-columns:1fr 1fr 1fr; margin-top:16px; }
+  .chart-grid-bottom { grid-template-columns:1fr 1fr; margin-top:16px; }
+  @media (max-width:1100px) { .chart-grid-top,.chart-grid-mid { grid-template-columns:1fr 1fr; } }
+  @media (max-width:720px)  {
+    .chart-grid-top,.chart-grid-mid,.chart-grid-bottom { grid-template-columns:1fr; }
+    .an-page { padding:20px 14px; }
+    .kpi-row { grid-template-columns:1fr 1fr; }
   }
+
+  /* ── Chart Card ── */
+  .ch-card {
+    background:linear-gradient(145deg,rgba(255,255,255,.05),rgba(255,255,255,.012));
+    border:1px solid rgba(255,255,255,.09); border-radius:20px; padding:24px;
+    backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+    position:relative; overflow:hidden;
+  }
+  .ch-card::before { content:''; position:absolute; top:0; left:0; right:0; height:1px;
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.12),transparent); }
+  .ch-head { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:18px; }
+  .ch-title { font-size:14px; font-weight:700; color:var(--text); }
+  .ch-sub   { font-size:11.5px; color:var(--text3); margin-top:2px; }
+  .ch-pill  { font-size:10.5px; font-weight:700; padding:3px 10px; border-radius:20px;
+               background:rgba(108,95,247,.12); color:#a78bfa; border:1px solid rgba(108,95,247,.22); white-space:nowrap; }
+  .ch-card canvas { max-height:260px; }
+
+  /* ── Insight List (inside cards) ── */
+  .insight-list { list-style:none; display:flex; flex-direction:column; gap:10px; }
+  .insight-item { display:flex; align-items:center; gap:10px; font-size:13px; }
+  .insight-dot  { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+  .insight-name { flex:1; color:var(--text2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .insight-val  { font-weight:700; font-family:'Space Grotesk',sans-serif; }
+
+  /* ── Price Table (bottom) ── */
+  .ptable-wrap { overflow-x:auto; }
+  .ptable { width:100%; border-collapse:collapse; font-size:13px; }
+  .ptable thead th {
+    padding:11px 14px; text-align:left; font-size:10.5px; font-weight:700;
+    color:var(--text3); letter-spacing:.07em; text-transform:uppercase;
+    background:rgba(255,255,255,.025); border-bottom:1px solid rgba(255,255,255,.08);
+  }
+  .ptable tbody tr { border-bottom:1px solid rgba(255,255,255,.05); transition:background .15s; }
+  .ptable tbody tr:hover { background:rgba(255,255,255,.025); }
+  .ptable tbody td { padding:12px 14px; vertical-align:middle; }
+  .ptable .p-name { font-weight:600; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ptable .p-plat { display:inline-flex; align-items:center; gap:5px; padding:2px 9px; border-radius:20px; font-size:11px; font-weight:600; }
+  .ptable .gap-bar-wrap { display:flex; align-items:center; gap:8px; }
+  .ptable .gap-bar { height:5px; border-radius:6px; background:rgba(255,255,255,.07); flex:1; overflow:hidden; }
+  .ptable .gap-fill { height:100%; border-radius:6px; }
+  .gap-ok { background:linear-gradient(90deg,#34d399,#22d3ee); }
+  .gap-no { background:linear-gradient(90deg,#f87171,#fb923c); }
+
+  /* ── Empty State ── */
+  .empty-state { text-align:center; padding:60px 20px; color:var(--text3); }
+  .empty-state .es-icon { font-size:48px; margin-bottom:16px; }
+  .empty-state h3 { font-size:18px; color:var(--text2); margin-bottom:8px; }
+  .empty-state p  { font-size:13.5px; }
+
+  /* ── Animations ── */
+  .an-a1 { animation:fadeUp .45s .00s ease both; }
+  .an-a2 { animation:fadeUp .45s .08s ease both; }
+  .an-a3 { animation:fadeUp .45s .16s ease both; }
+  .an-a4 { animation:fadeUp .45s .24s ease both; }
+  .an-a5 { animation:fadeUp .45s .32s ease both; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="page">
-  <div class="a1" style="margin-bottom:24px">
-    <h1 style="font-size:28px;margin-bottom:8px">Statistical Analysis</h1>
-    <p class="subtle">Visual insights for your tracked prices, target gaps, and platform distribution.</p>
+<div class="an-page">
+
+  <!-- Header -->
+  <div class="an-header an-a1">
+    <div>
+      <h1 class="an-title">📊 Statistical Analysis</h1>
+      <p class="an-sub">Deep insights into your tracked prices, platform distribution &amp; target gaps.</p>
+    </div>
+    <div class="an-badge"><span class="pulse"></span> Live Data</div>
   </div>
 
-  <div class="metrics a2" style="margin-bottom:16px">
-    <div class="metric">
-      <div class="metric-k">Tracked Rows</div>
-      <div class="metric-v" id="mRows">0</div>
+  <!-- KPI Row -->
+  <div class="kpi-row an-a2" id="kpiRow">
+    <div class="kpi-card kpi-glow-cyan">
+      <div class="kpi-icon">📦</div>
+      <div class="kpi-val" id="kTotalRows">—</div>
+      <div class="kpi-label">Total Records</div>
+      <div class="kpi-delta neu" id="kTotalSub">loading…</div>
     </div>
-    <div class="metric">
-      <div class="metric-k">Average Price</div>
-      <div class="metric-v" id="mAvg">₹0</div>
+    <div class="kpi-card kpi-glow-purple">
+      <div class="kpi-icon">🏷️</div>
+      <div class="kpi-val" id="kAvgPrice">—</div>
+      <div class="kpi-label">Average Price</div>
+      <div class="kpi-delta neu" id="kAvgSub">across all products</div>
     </div>
-    <div class="metric">
-      <div class="metric-k">Target Hit Rate</div>
-      <div class="metric-v" id="mHit">0%</div>
+    <div class="kpi-card kpi-glow-green">
+      <div class="kpi-icon">🎯</div>
+      <div class="kpi-val" id="kHitRate">—</div>
+      <div class="kpi-label">Target Hit Rate</div>
+      <div class="kpi-delta neu" id="kHitSub">loading…</div>
+    </div>
+    <div class="kpi-card kpi-glow-yellow">
+      <div class="kpi-icon">📉</div>
+      <div class="kpi-val" id="kMinPrice">—</div>
+      <div class="kpi-label">Lowest Price Seen</div>
+      <div class="kpi-delta neu" id="kMinSub">all time</div>
+    </div>
+    <div class="kpi-card kpi-glow-pink">
+      <div class="kpi-icon">📈</div>
+      <div class="kpi-val" id="kMaxPrice">—</div>
+      <div class="kpi-label">Highest Price Seen</div>
+      <div class="kpi-delta neu" id="kMaxSub">all time</div>
     </div>
   </div>
 
-  <div class="analytics-grid a3">
-    <div class="analytics-card chart-card">
-      <h3 style="font-size:15px;margin-bottom:14px">Price Trend (Daily Average)</h3>
-      <canvas id="trendChart" height="110"></canvas>
+  <!-- Row 1: Trend + Platform -->
+  <div class="chart-grid chart-grid-top an-a3" id="chartRow1">
+    <div class="ch-card">
+      <div class="ch-head">
+        <div><div class="ch-title">Price Trend</div><div class="ch-sub">Daily average across all tracked products</div></div>
+        <div class="ch-pill">Last 14 days</div>
+      </div>
+      <canvas id="trendChart"></canvas>
     </div>
-    <div class="analytics-card chart-card">
-      <h3 style="font-size:15px;margin-bottom:14px">Platform Share</h3>
-      <canvas id="platformChart" height="110"></canvas>
+    <div class="ch-card">
+      <div class="ch-head">
+        <div><div class="ch-title">Platform Share</div><div class="ch-sub">Distribution of tracking entries</div></div>
+      </div>
+      <canvas id="platformChart"></canvas>
     </div>
-    <div class="analytics-card chart-card">
-      <h3 style="font-size:15px;margin-bottom:14px">Current Price vs Target</h3>
-      <canvas id="targetChart" height="110"></canvas>
+  </div>
+
+  <!-- Row 2: Min/Max + Price Range + Volatility -->
+  <div class="chart-grid chart-grid-mid an-a4" id="chartRow2">
+    <div class="ch-card">
+      <div class="ch-head">
+        <div><div class="ch-title">Current vs Target</div><div class="ch-sub">Price gap per product</div></div>
+        <div class="ch-pill">Top 6</div>
+      </div>
+      <canvas id="targetChart"></canvas>
     </div>
-    <div class="analytics-card">
-      <h3 style="font-size:15px;margin-bottom:10px">Reading Guide</h3>
-      <div class="flow-grid">
-        <div class="flow-step">
-          <div class="flow-kicker">Graph 1</div>
-          <div class="flow-title">Trend</div>
-          <div class="flow-desc">Daily average movement across your tracked products.</div>
-        </div>
-        <div class="flow-step">
-          <div class="flow-kicker">Graph 2</div>
-          <div class="flow-title">Platforms</div>
-          <div class="flow-desc">How your tracking entries are distributed by platform.</div>
-        </div>
-        <div class="flow-step">
-          <div class="flow-kicker">Graph 3</div>
-          <div class="flow-title">Target Gap</div>
-          <div class="flow-desc">Compares latest product price against configured target.</div>
-        </div>
+    <div class="ch-card">
+      <div class="ch-head">
+        <div><div class="ch-title">Price Distribution</div><div class="ch-sub">Frequency by price range</div></div>
+      </div>
+      <canvas id="histChart"></canvas>
+    </div>
+    <div class="ch-card">
+      <div class="ch-head">
+        <div><div class="ch-title">Top Products</div><div class="ch-sub">By price movement recency</div></div>
+      </div>
+      <ul class="insight-list" id="insightList">
+        <li class="insight-item" style="color:var(--text3);justify-content:center;">Loading…</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Row 3: Savings table -->
+  <div class="chart-grid chart-grid-bottom an-a5" id="chartRow3">
+    <div class="ch-card" style="grid-column:1/-1;">
+      <div class="ch-head">
+        <div><div class="ch-title">Target Gap Breakdown</div><div class="ch-sub">Current price vs target — how close are you?</div></div>
+      </div>
+      <div class="ptable-wrap" id="gapTableWrap">
+        <p style="color:var(--text3);text-align:center;padding:20px 0;">Loading…</p>
       </div>
     </div>
   </div>
+
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-  const rows = {{ rows|tojson }};
-  const COLORS = {
-    flipkart: '#5b9cf6',
-    amazon: '#fbbf24',
-    myntra: '#fb7185',
-    snapdeal: '#f87171',
-    other: '#a78bfa'
+const rows = {{ rows|tojson }};
+
+/* ── Palette ── */
+const C = {
+  cyan:'#22d3ee', purple:'#a78bfa', green:'#34d399',
+  yellow:'#fbbf24', pink:'#f472b6', orange:'#fb923c', red:'#f87171',
+  flip:'#5b9cf6', amz:'#fbbf24', myn:'#fb7185', snap:'#f87171', other:'#a78bfa'
+};
+const TXT  = '#8b93b5';
+const GRID = 'rgba(255,255,255,.06)';
+const CHART_DEFAULTS = {
+  color: TXT,
+  plugins:{ legend:{ labels:{ color:TXT, font:{family:'Plus Jakarta Sans',size:12}, boxWidth:10, padding:16 } } },
+  scales:{
+    x:{ ticks:{color:TXT,font:{size:11}}, grid:{color:GRID} },
+    y:{ ticks:{color:TXT,font:{size:11}}, grid:{color:GRID} }
+  }
+};
+
+function inr(v){ return '₹'+Number(v||0).toLocaleString('en-IN'); }
+function pct(v,t){ return t ? Math.round((v/t)*100)+'%' : '—'; }
+
+/* ─── KPIs ─── */
+function buildKPIs(){
+  const n = rows.length;
+  const prices = rows.map(r=>Number(r.price)||0);
+  const avg    = n ? Math.round(prices.reduce((a,b)=>a+b,0)/n) : 0;
+  const mn     = n ? Math.min(...prices) : 0;
+  const mx     = n ? Math.max(...prices) : 0;
+  const withT  = rows.filter(r=>r.target_price!=null);
+  const hits   = withT.filter(r=>Number(r.price)<=Number(r.target_price)).length;
+  const hr     = withT.length ? Math.round((hits/withT.length)*100) : 0;
+  const prods  = new Set(rows.map(r=>r.url)).size;
+
+  document.getElementById('kTotalRows').textContent = n.toLocaleString('en-IN');
+  document.getElementById('kTotalSub').textContent  = prods+' unique products';
+  document.getElementById('kTotalSub').className    = 'kpi-delta neu';
+
+  document.getElementById('kAvgPrice').textContent = inr(avg);
+  document.getElementById('kAvgSub').textContent   = 'across all products';
+
+  document.getElementById('kHitRate').textContent  = hr+'%';
+  document.getElementById('kHitSub').textContent   = hits+' of '+withT.length+' hit target';
+  document.getElementById('kHitSub').className     = 'kpi-delta '+(hr>=50?'up':'down');
+
+  document.getElementById('kMinPrice').textContent = inr(mn);
+  document.getElementById('kMaxPrice').textContent = inr(mx);
+}
+
+/* ─── Trend Chart ─── */
+function buildTrend(){
+  const map={};
+  rows.forEach(r=>{
+    const d=(r.created_at||'').slice(0,10); if(!d) return;
+    if(!map[d]) map[d]={sum:0,c:0};
+    map[d].sum+=Number(r.price)||0; map[d].c++;
+  });
+  const labels=Object.keys(map).sort().slice(-14);
+  const data  =labels.map(d=>Math.round(map[d].sum/map[d].c));
+  new Chart(document.getElementById('trendChart'),{
+    type:'line',
+    data:{labels, datasets:[{
+      label:'Avg Price',data,
+      borderColor:C.cyan, backgroundColor:'rgba(34,211,238,.12)',
+      fill:true, tension:.4, pointRadius:4, pointBackgroundColor:C.cyan,
+      pointBorderColor:'#07080e', pointBorderWidth:2
+    }]},
+    options:{
+      responsive:true,
+      plugins:{ legend:{labels:{color:TXT}} },
+      scales:{
+        x:{ticks:{color:TXT,maxRotation:30}, grid:{color:GRID}},
+        y:{ticks:{color:TXT, callback:v=>inr(v)}, grid:{color:GRID}}
+      }
+    }
+  });
+}
+
+/* ─── Platform Doughnut ─── */
+function buildPlatform(){
+  const cnt={flipkart:0,amazon:0,myntra:0,snapdeal:0,other:0};
+  rows.forEach(r=>{
+    const p=(r.platform||'').toLowerCase();
+    if(p in cnt) cnt[p]++; else cnt.other++;
+  });
+  const labels=['Flipkart','Amazon','Myntra','Snapdeal','Other'];
+  const values=[cnt.flipkart,cnt.amazon,cnt.myntra,cnt.snapdeal,cnt.other];
+  new Chart(document.getElementById('platformChart'),{
+    type:'doughnut',
+    data:{labels, datasets:[{
+      data:values,
+      backgroundColor:[C.flip,C.amz,C.myn,C.snap,C.other],
+      borderWidth:0, hoverOffset:8
+    }]},
+    options:{
+      cutout:'65%',
+      plugins:{ legend:{position:'bottom',labels:{color:TXT,padding:12,font:{size:12}}} }
+    }
+  });
+}
+
+/* ─── Target Gap Bar ─── */
+function buildTarget(){
+  const latest={};
+  rows.forEach(r=>{ if(!latest[r.url]) latest[r.url]=r; });
+  const list=Object.values(latest).filter(r=>r.target_price).slice(0,6);
+  const labels=list.map(r=>(r.product_name||r.url||'Item').slice(0,20));
+  const current=list.map(r=>Number(r.price)||0);
+  const target =list.map(r=>Number(r.target_price)||0);
+  new Chart(document.getElementById('targetChart'),{
+    type:'bar',
+    data:{labels, datasets:[
+      {label:'Current',data:current, backgroundColor:'rgba(34,211,238,.65)', borderRadius:6, borderSkipped:false},
+      {label:'Target', data:target,  backgroundColor:'rgba(167,139,250,.55)', borderRadius:6, borderSkipped:false}
+    ]},
+    options:{
+      responsive:true, indexAxis:'y',
+      plugins:{ legend:{labels:{color:TXT}} },
+      scales:{
+        x:{ticks:{color:TXT,callback:v=>inr(v)}, grid:{color:GRID}},
+        y:{ticks:{color:TXT,font:{size:11}}, grid:{color:'transparent'}}
+      }
+    }
+  });
+}
+
+/* ─── Price Histogram ─── */
+function buildHistogram(){
+  const prices=rows.map(r=>Number(r.price)||0).filter(p=>p>0);
+  if(!prices.length) return;
+  const mn=Math.min(...prices), mx=Math.max(...prices);
+  const buckets=8;
+  const step=Math.ceil((mx-mn)/buckets)||1;
+  const labels=[], counts=[];
+  for(let i=0;i<buckets;i++){
+    const lo=mn+i*step, hi=lo+step;
+    labels.push('₹'+Math.round(lo/1000)+'k');
+    counts.push(prices.filter(p=>p>=lo&&p<hi).length);
+  }
+  new Chart(document.getElementById('histChart'),{
+    type:'bar',
+    data:{labels, datasets:[{
+      label:'Products',data:counts,
+      backgroundColor:'rgba(167,139,250,.6)',
+      borderColor:'rgba(167,139,250,.9)',
+      borderWidth:1, borderRadius:6, borderSkipped:false
+    }]},
+    options:{
+      responsive:true,
+      plugins:{ legend:{labels:{color:TXT}} },
+      scales:{
+        x:{ticks:{color:TXT,font:{size:10}}, grid:{color:GRID}},
+        y:{ticks:{color:TXT,stepSize:1}, grid:{color:GRID}}
+      }
+    }
+  });
+}
+
+/* ─── Insight List ─── */
+function buildInsights(){
+  const latest={};
+  rows.forEach(r=>{ if(!latest[r.url]) latest[r.url]=r; });
+  const list=Object.values(latest).slice(0,7);
+  const colors=[C.cyan,C.purple,C.green,C.yellow,C.pink,C.orange,C.flip];
+  const el=document.getElementById('insightList');
+  if(!list.length){ el.innerHTML='<li class="insight-item" style="color:var(--text3)">No products yet.</li>'; return; }
+  el.innerHTML=list.map((r,i)=>{
+    const plat=(r.platform||'other').toLowerCase();
+    return `<li class="insight-item">
+      <span class="insight-dot" style="background:${colors[i%colors.length]}"></span>
+      <span class="insight-name" title="${r.product_name||r.url}">${(r.product_name||r.url||'Product').slice(0,30)}</span>
+      <span class="insight-val">${inr(r.price)}</span>
+    </li>`;
+  }).join('');
+}
+
+/* ─── Gap Table ─── */
+function buildGapTable(){
+  const latest={};
+  rows.forEach(r=>{ if(!latest[r.url]) latest[r.url]=r; });
+  const list=Object.values(latest).filter(r=>r.target_price);
+  const wrap=document.getElementById('gapTableWrap');
+  if(!list.length){
+    wrap.innerHTML='<p style="color:var(--text3);text-align:center;padding:20px 0">No products with a target price set.</p>';
+    return;
+  }
+  const platStyle={
+    flipkart:`background:rgba(40,116,240,.12);color:#5b9cf6;border:1px solid rgba(40,116,240,.2)`,
+    amazon:`background:rgba(255,153,0,.12);color:#fbbf24;border:1px solid rgba(255,153,0,.2)`,
+    myntra:`background:rgba(255,63,108,.12);color:#fb7185;border:1px solid rgba(255,63,108,.2)`,
+    snapdeal:`background:rgba(228,0,0,.12);color:#f87171;border:1px solid rgba(228,0,0,.2)`,
+    other:`background:rgba(167,139,250,.12);color:#a78bfa;border:1px solid rgba(167,139,250,.2)`
   };
+  const rows_html=list.slice(0,12).map(r=>{
+    const cur=Number(r.price)||0, tgt=Number(r.target_price)||0;
+    const hit=cur<=tgt;
+    const gap=tgt-cur;
+    const barPct=tgt>0 ? Math.min(100,Math.round((cur/tgt)*100)) : 0;
+    const ps=(r.platform||'other').toLowerCase();
+    const ps_key=platStyle[ps]||platStyle.other;
+    return `<tr>
+      <td><div class="p-name" title="${r.product_name||r.url}">${(r.product_name||r.url||'—').slice(0,40)}</div></td>
+      <td><span class="p-plat" style="${ps_key}">${(r.platform||'Other')}</span></td>
+      <td style="font-family:'Space Grotesk',sans-serif;font-weight:700">${inr(cur)}</td>
+      <td style="color:var(--text2)">${inr(tgt)}</td>
+      <td style="color:${hit?'#34d399':'#f87171'};font-weight:600">${hit?'✅ Hit':'₹'+Math.abs(gap).toLocaleString('en-IN')+' away'}</td>
+      <td style="min-width:130px">
+        <div class="gap-bar-wrap">
+          <div class="gap-bar"><div class="gap-fill ${hit?'gap-ok':'gap-no'}" style="width:${barPct}%"></div></div>
+          <span style="font-size:11px;color:var(--text3);white-space:nowrap">${barPct}%</span>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+  wrap.innerHTML=`<table class="ptable">
+    <thead><tr>
+      <th>Product</th><th>Platform</th><th>Current</th><th>Target</th><th>Status</th><th>Progress</th>
+    </tr></thead>
+    <tbody>${rows_html}</tbody>
+  </table>`;
+}
 
-  const chartTextColor = '#8b93b5';
-  const chartGridColor = 'rgba(255,255,255,.06)';
-
-  function inr(v){ return '₹' + Number(v || 0).toLocaleString('en-IN'); }
-
-  function buildMetrics() {
-    const total = rows.length;
-    const avg = total ? Math.round(rows.reduce((s, r) => s + (Number(r.price) || 0), 0) / total) : 0;
-    const withTarget = rows.filter(r => r.target_price !== null && r.target_price !== undefined);
-    const hits = withTarget.filter(r => Number(r.price) <= Number(r.target_price)).length;
-    const hitRate = withTarget.length ? Math.round((hits / withTarget.length) * 100) : 0;
-    document.getElementById('mRows').textContent = total.toLocaleString('en-IN');
-    document.getElementById('mAvg').textContent = inr(avg);
-    document.getElementById('mHit').textContent = hitRate + '%';
-  }
-
-  function buildTrendChart() {
-    const map = {};
-    rows.forEach(r => {
-      const d = (r.created_at || '').slice(0, 10);
-      if (!d) return;
-      if (!map[d]) map[d] = {sum: 0, count: 0};
-      map[d].sum += Number(r.price) || 0;
-      map[d].count += 1;
-    });
-    const labels = Object.keys(map).sort().slice(-10);
-    const data = labels.map(d => Math.round(map[d].sum / map[d].count));
-    new Chart(document.getElementById('trendChart'), {
-      type: 'line',
-      data: { labels, datasets: [{ label: 'Avg Price', data, borderColor: '#22d3ee', backgroundColor: 'rgba(34,211,238,.18)', fill: true, tension: .35, pointRadius: 3 }] },
-      options: {
-        plugins: { legend: { labels: { color: chartTextColor } } },
-        scales: {
-          x: { ticks: { color: chartTextColor }, grid: { color: chartGridColor } },
-          y: { ticks: { color: chartTextColor, callback: (v) => inr(v) }, grid: { color: chartGridColor } }
-        }
-      }
-    });
-  }
-
-  function buildPlatformChart() {
-    const counts = {flipkart: 0, amazon: 0, myntra: 0, snapdeal: 0, other: 0};
-    rows.forEach(r => {
-      const p = (r.platform || '').toLowerCase();
-      counts[p] = (counts[p] ?? counts.other) + 1;
-      if (!(p in counts)) counts.other += 1;
-    });
-    const labels = ['Flipkart', 'Amazon', 'Myntra', 'Snapdeal', 'Other'];
-    const values = [counts.flipkart, counts.amazon, counts.myntra, counts.snapdeal, counts.other];
-    new Chart(document.getElementById('platformChart'), {
-      type: 'doughnut',
-      data: {
-        labels,
-        datasets: [{ data: values, backgroundColor: [COLORS.flipkart, COLORS.amazon, COLORS.myntra, COLORS.snapdeal, COLORS.other], borderWidth: 0 }]
-      },
-      options: { plugins: { legend: { labels: { color: chartTextColor } } } }
-    });
-  }
-
-  function buildTargetChart() {
-    const latestByUrl = {};
-    rows.forEach(r => {
-      if (!latestByUrl[r.url]) latestByUrl[r.url] = r;
-    });
-    const list = Object.values(latestByUrl).filter(r => r.target_price);
-    const top = list.slice(0, 8);
-    const labels = top.map(r => (r.product_name || r.url || 'Item').slice(0, 22));
-    const current = top.map(r => Number(r.price) || 0);
-    const target = top.map(r => Number(r.target_price) || 0);
-    new Chart(document.getElementById('targetChart'), {
-      type: 'bar',
-      data: {
-        labels,
-        datasets: [
-          { label: 'Current', data: current, backgroundColor: 'rgba(34,211,238,.65)', borderRadius: 8 },
-          { label: 'Target', data: target, backgroundColor: 'rgba(167,139,250,.6)', borderRadius: 8 }
-        ]
-      },
-      options: {
-        plugins: { legend: { labels: { color: chartTextColor } } },
-        scales: {
-          x: { ticks: { color: chartTextColor }, grid: { color: chartGridColor } },
-          y: { ticks: { color: chartTextColor, callback: (v) => inr(v) }, grid: { color: chartGridColor } }
-        }
-      }
-    });
-  }
-
-  buildMetrics();
-  if (!rows.length) {
-    document.querySelector('.analytics-grid').innerHTML = '<div class="alert alert-warn">No historical data yet. Track products to generate statistics.</div>';
-  } else {
-    buildTrendChart();
-    buildPlatformChart();
-    buildTargetChart();
-  }
+/* ─── Init ─── */
+if(!rows.length){
+  ['chartRow1','chartRow2','chartRow3'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.style.display='none';
+  });
+  document.getElementById('kpiRow').insertAdjacentHTML('afterend',
+    `<div class="empty-state">
+       <div class="es-icon">📭</div>
+       <h3>No tracking data yet</h3>
+       <p>Start tracking products on the <a href="/track" style="color:var(--accent2)">Track page</a> to see statistics here.</p>
+     </div>`
+  );
+} else {
+  buildTrend();
+  buildPlatform();
+  buildTarget();
+  buildHistogram();
+  buildInsights();
+  buildGapTable();
+}
+buildKPIs();
 </script>
 {% endblock %}

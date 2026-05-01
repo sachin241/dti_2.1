@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+selenium
+webdriver-manager
+apscheduler
+httpx
+python-multipart
+starlette
+itsdangerous
+jinja2
+python-dotenv
+google-genai
+bcrypt
+Pillow

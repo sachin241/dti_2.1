@@ -8,7 +8,7 @@ from email_service import send_price_alert
 
 if __name__ == "__main__":
     result = send_price_alert(
-        email         = os.getenv("TEST_EMAIL", "harishchandraappari@gmail.com"),
+        email         = os.getenv("TEST_EMAIL", "harishchandraappari74@gmail.com"),
         product_url   = "https://www.flipkart.com/sample-product",
         current_price = 14999,
         target_price  = 15000,

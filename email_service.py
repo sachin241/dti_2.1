@@ -1,11 +1,11 @@
 # email_service.py
 import os
 import smtplib
+import json
+import time
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-SENDER_EMAIL = os.getenv("SENDER_EMAIL", "")
-APP_PASSWORD  = os.getenv("APP_PASSWORD", "")
 
 PLATFORM_COLORS = {
     "flipkart": "#2874F0",
@@ -98,16 +98,20 @@ def _build_html(product_url: str, product_name: str, current_price: int,
 def send_price_alert(email: str, product_url: str, current_price: int,
                      target_price: int = 0, platform: str = "flipkart",
                      product_name: str = None) -> bool:
-    if not SENDER_EMAIL or not APP_PASSWORD:
+    sender_email = os.getenv("SENDER_EMAIL")
+    app_password = os.getenv("APP_PASSWORD")
+
+    if not sender_email or not app_password:
         print("[Email] SENDER_EMAIL / APP_PASSWORD env vars not set — skipping.")
         return False
+
 
     pname   = PLATFORM_NAMES.get(platform, platform.title())
     subject = f"🎯 Price Drop! ₹{current_price:,} on {pname}"
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
-    msg["From"]    = f"Smart Price Tracker <{SENDER_EMAIL}>"
+    msg["From"]    = f"Smart Price Tracker <{sender_email}>"
     msg["To"]      = email
 
     # Plain text fallback
@@ -127,7 +131,7 @@ def send_price_alert(email: str, product_url: str, current_price: int,
 
     try:
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-            server.login(SENDER_EMAIL, APP_PASSWORD)
+            server.login(sender_email, app_password)
             server.send_message(msg)
         print(f"[Email] Alert sent to {email}")
         return True

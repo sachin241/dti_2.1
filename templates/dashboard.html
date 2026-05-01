@@ -163,9 +163,20 @@
         <span style="font-size:12px;color:var(--text3)">
           Last checked {{ (p.created_at or '')[:16] }}
         </span>
-        {% if tgt and p.price <= tgt %}
-        <span class="chip chip-target" style="font-size:11px">🎯 At target!</span>
-        {% endif %}
+        <div style="display:flex;align-items:center;gap:8px">
+          {% if tgt %}
+          {% set pct_drop = ((tgt - p.price) / tgt * 100)|int if tgt else 0 %}
+          <span style="font-size:11px;color:var(--green)">{{ pct_drop }}% to target</span>
+          {% endif %}
+          {% if tgt and p.price <= tgt %}
+          <span class="chip chip-target" style="font-size:11px">🎯 At target!</span>
+          {% endif %}
+          <form method="post" action="/track/delete" style="display:inline;margin:0">
+            <input type="hidden" name="url" value="{{ p.url }}">
+            <button type="submit" class="btn btn-danger btn-sm"
+              onclick="return confirm('Remove this product from tracking?')">🗑</button>
+          </form>
+        </div>
       </div>
 
     </div>

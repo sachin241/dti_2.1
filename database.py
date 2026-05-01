@@ -51,9 +51,18 @@ def init_db():
             CREATE TABLE IF NOT EXISTS user_logins (
                 email        TEXT PRIMARY KEY,
                 provider     TEXT,
-                last_login_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                last_login_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                password     TEXT,
+                picture      TEXT
             )
         """)
+        
+        # Add password and picture columns to user_logins if missing
+        login_cols = {row[1] for row in cursor.execute("PRAGMA table_info(user_logins)")}
+        if "password" not in login_cols:
+            cursor.execute("ALTER TABLE user_logins ADD COLUMN password TEXT")
+        if "picture" not in login_cols:
+            cursor.execute("ALTER TABLE user_logins ADD COLUMN picture TEXT")
 
         # Alert log — tracks every email sent so we don't spam
         cursor.execute("""
@@ -153,18 +162,78 @@ def get_all_tracked_products() -> List[dict]:
         return [dict(r) for r in rows]
 
 
-def upsert_user_login(email: str, provider: str):
+def upsert_user_login(email: str, provider: str, password: str = None, picture: str = None):
     with get_db() as conn:
-        conn.execute(
-            """
-            INSERT INTO user_logins (email, provider, last_login_at)
-            VALUES (?, ?, CURRENT_TIMESTAMP)
-            ON CONFLICT(email) DO UPDATE SET
-                provider = excluded.provider,
-                last_login_at = CURRENT_TIMESTAMP
-            """,
-            (email, provider),
-        )
+        if password and picture:
+            conn.execute(
+                """
+                INSERT INTO user_logins (email, provider, last_login_at, password, picture)
+                VALUES (?, ?, CURRENT_TIMESTAMP, ?, ?)
+                ON CONFLICT(email) DO UPDATE SET
+                    provider = excluded.provider,
+                    last_login_at = CURRENT_TIMESTAMP,
+                    password = excluded.password,
+                    picture = excluded.picture
+                """,
+                (email, provider, password, picture),
+            )
+        elif password:
+            conn.execute(
+                """
+                INSERT INTO user_logins (email, provider, last_login_at, password)
+                VALUES (?, ?, CURRENT_TIMESTAMP, ?)
+                ON CONFLICT(email) DO UPDATE SET
+                    provider = excluded.provider,
+                    last_login_at = CURRENT_TIMESTAMP,
+                    password = excluded.password
+                """,
+                (email, provider, password),
+            )
+        elif picture:
+            conn.execute(
+                """
+                INSERT INTO user_logins (email, provider, last_login_at, picture)
+                VALUES (?, ?, CURRENT_TIMESTAMP, ?)
+                ON CONFLICT(email) DO UPDATE SET
+                    provider = excluded.provider,
+                    last_login_at = CURRENT_TIMESTAMP,
+                    picture = excluded.picture
+                """,
+                (email, provider, picture),
+            )
+        else:
+            conn.execute(
+                """
+                INSERT INTO user_logins (email, provider, last_login_at)
+                VALUES (?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(email) DO UPDATE SET
+                    provider = excluded.provider,
+                    last_login_at = CURRENT_TIMESTAMP
+                """,
+                (email, provider),
+            )
+
+def get_user_data(email: str) -> Optional[dict]:
+    with get_db() as conn:
+        row = conn.execute("SELECT provider, password, picture FROM user_logins WHERE email=?", (email,)).fetchone()
+        return dict(row) if row else None
+
+def update_user_picture(email: str, picture: str):
+    with get_db() as conn:
+        conn.execute("UPDATE user_logins SET picture=? WHERE email=?", (picture, email))
+
+def get_user_password(email: str) -> Optional[str]:
+    with get_db() as conn:
+        row = conn.execute("SELECT password FROM user_logins WHERE email=?", (email,)).fetchone()
+        return row['password'] if row else None
+
+def update_user_password(email: str, hashed_password: str):
+    with get_db() as conn:
+        conn.execute("UPDATE user_logins SET password=? WHERE email=?", (hashed_password, email))
+
+def delete_tracked_product(email: str, url: str):
+    with get_db() as conn:
+        conn.execute("DELETE FROM products WHERE email=? AND url=?", (email, url))
 
 
 def get_trusted_users_count() -> int:
