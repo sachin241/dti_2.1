@@ -1,7 +1,7 @@
 # test_email.py
 """
 Quick smoke-test for the email alert service.
-Set SENDER_EMAIL and APP_PASSWORD env vars before running.
+Set RESEND_API_KEY and RESEND_FROM_EMAIL env vars before running.
 """
 import os
 from email_service import send_price_alert

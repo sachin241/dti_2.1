@@ -268,7 +268,7 @@
 
   <!-- Alerts -->
   {% if not email_alerts_enabled %}
-  <div class="trk-alert ta-warn a2">⚙ Email alerts disabled. Set <strong>SENDER_EMAIL</strong> &amp; <strong>APP_PASSWORD</strong> in your <code>.env</code>.</div>
+  <div class="trk-alert ta-warn a2">⚙ Email alerts disabled. Set <strong>RESEND_API_KEY</strong> and <strong>RESEND_FROM_EMAIL</strong> in your <code>.env</code>.</div>
   {% endif %}
   {% if error %}
   <div class="trk-alert ta-error a2">⚠ {{ error }}</div>

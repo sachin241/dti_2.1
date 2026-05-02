@@ -128,7 +128,7 @@ def base_ctx(request: Request, user, active: str = "", extra: dict = None) -> di
         "active":          active,
         "logged_in_count": len(LOGGED_IN_USERS),
         "trusted_count":   get_trusted_users_count(),
-        "email_alerts_enabled": bool(os.getenv("SENDER_EMAIL")) and bool(os.getenv("APP_PASSWORD")),
+        "email_alerts_enabled": bool(os.getenv("RESEND_API_KEY")) and bool(os.getenv("RESEND_FROM_EMAIL") or os.getenv("SENDER_EMAIL")),
     }
     if extra:
         ctx.update(extra)
